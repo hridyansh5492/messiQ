@@ -8,118 +8,232 @@
 <BorderPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.messiq.client.controller.MainChatController"
-            styleClass="main-root"
-            prefWidth="1080"
-            prefHeight="720">
+            fx:id="rootPane"
+            styleClass="main-root, theme-light"
+            prefWidth="1120"
+            prefHeight="760">
 
-    <!-- LEFT SIDEBAR -->
-    <left>
-        <VBox styleClass="sidebar-container" prefWidth="320" minWidth="280">
-            <!-- User Profile Header -->
-            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sidebar-header">
-                <padding>
-                    <Insets top="16" right="16" bottom="16" left="16"/>
-                </padding>
-                <StackPane>
-                    <Circle fx:id="currentUserAvatarCircle" radius="20" styleClass="avatar-circle"/>
-                    <Circle fx:id="currentUserStatusCircle" radius="5" styleClass="status-dot-sub" StackPane.alignment="BOTTOM_RIGHT"/>
+    <!-- TOP HEADER BAR -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="app-topbar">
+            <padding>
+                <Insets top="10" right="24" bottom="10" left="24"/>
+            </padding>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane styleClass="brand-badge-icon">
+                    <Label text="💬" styleClass="brand-icon-text"/>
                 </StackPane>
-                <VBox spacing="2" HBox.hgrow="ALWAYS">
-                    <Label fx:id="currentUserNameLabel" text="User Name" styleClass="profile-name"/>
-                    <Label fx:id="currentUserHandleLabel" text="@username" styleClass="profile-handle"/>
-                </VBox>
-                <Button text="⇥" onAction="#handleLogout" styleClass="logout-btn" tooltip="$logoutTooltip">
-                    <tooltip>
-                        <Tooltip fx:id="logoutTooltip" text="Sign Out"/>
-                    </tooltip>
-                </Button>
+                <Label text="messiQ" styleClass="brand-title"/>
+                <Label text="A little closer, wherever" styleClass="brand-tagline"/>
             </HBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <HBox alignment="CENTER_RIGHT" spacing="20">
+                <HBox alignment="CENTER" spacing="6">
+                    <Circle fx:id="topWsCircle" radius="4" styleClass="status-dot-online"/>
+                    <Label fx:id="wsStatusLabel" text="All systems connected" styleClass="top-meta-text"/>
+                </HBox>
+                <Label fx:id="topDateLabel" text="Thu, October 29" styleClass="top-meta-text"/>
+                <StackPane fx:id="topAvatarPane" onMouseClicked="#handleLogout" styleClass="avatar-button" cursor="HAND">
+                    <Circle fx:id="topUserAvatarCircle" radius="14" styleClass="avatar-circle-sm"/>
+                </StackPane>
+            </HBox>
+        </HBox>
+    </top>
 
-            <!-- Search Bar -->
-            <VBox styleClass="search-wrapper">
+    <!-- LEFT NAVIGATION: SLIM RAIL + MESSAGES COLUMN -->
+    <left>
+        <HBox styleClass="left-combined-container">
+            <!-- 1. SLIM ICON RAIL -->
+            <VBox alignment="CENTER" spacing="14" styleClass="nav-rail" prefWidth="64" minWidth="64">
                 <padding>
-                    <Insets top="8" right="14" bottom="10" left="14"/>
+                    <Insets top="16" right="8" bottom="16" left="8"/>
                 </padding>
-                <TextField fx:id="searchField" promptText="🔍 Search users or chats..." styleClass="search-field"/>
+                <VBox alignment="TOP_CENTER" spacing="12" VBox.vgrow="ALWAYS">
+                    <Button text="▦" styleClass="rail-icon-btn" tooltip="$ttApps">
+                        <tooltip><Tooltip fx:id="ttApps" text="Apps"/></tooltip>
+                    </Button>
+                    <Button text="💬" styleClass="rail-icon-btn, rail-active-btn" tooltip="$ttChats">
+                        <tooltip><Tooltip fx:id="ttChats" text="Messages"/></tooltip>
+                    </Button>
+                    <Button text="👥" onAction="#handleShowDirectory" styleClass="rail-icon-btn" tooltip="$ttContacts">
+                        <tooltip><Tooltip fx:id="ttContacts" text="Contacts Directory"/></tooltip>
+                    </Button>
+                    <Button text="🔖" styleClass="rail-icon-btn" tooltip="$ttBookmarks">
+                        <tooltip><Tooltip fx:id="ttBookmarks" text="Bookmarks"/></tooltip>
+                    </Button>
+                    <Button text="🔔" styleClass="rail-icon-btn" tooltip="$ttNotifs">
+                        <tooltip><Tooltip fx:id="ttNotifs" text="Notifications"/></tooltip>
+                    </Button>
+                </VBox>
+                <VBox alignment="BOTTOM_CENTER" spacing="12">
+                    <!-- Light / Dark Mode Toggle Button -->
+                    <Button fx:id="themeToggleBtn" text="🌙" onAction="#handleToggleTheme" styleClass="rail-icon-btn, theme-btn" tooltip="$ttTheme">
+                        <tooltip><Tooltip fx:id="ttTheme" text="Toggle Light / Dark Mode"/></tooltip>
+                    </Button>
+                    <Button text="⚙" styleClass="rail-icon-btn" tooltip="$ttSettings">
+                        <tooltip><Tooltip fx:id="ttSettings" text="Settings"/></tooltip>
+                    </Button>
+                    <StackPane onMouseClicked="#handleLogout" styleClass="avatar-button" cursor="HAND">
+                        <Circle fx:id="railUserAvatarCircle" radius="16" styleClass="avatar-circle-sm"/>
+                        <Circle radius="4" styleClass="status-dot-online" StackPane.alignment="BOTTOM_RIGHT"/>
+                    </StackPane>
+                </VBox>
             </VBox>
 
-            <!-- User Cards Scroll List -->
-            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="user-scroll-pane">
-                <VBox fx:id="userListContainer" spacing="4" styleClass="user-list-vbox">
-                    <padding>
-                        <Insets top="4" right="10" bottom="8" left="10"/>
-                    </padding>
-                </VBox>
-            </ScrollPane>
-
-            <!-- Bottom Connection Status -->
-            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="sidebar-footer">
+            <!-- 2. MESSAGES COLUMN -->
+            <VBox styleClass="sidebar-messages" prefWidth="320" minWidth="280">
                 <padding>
-                    <Insets top="10" right="16" bottom="10" left="16"/>
+                    <Insets top="18" right="16" bottom="12" left="16"/>
                 </padding>
-                <Circle fx:id="wsStatusCircle" radius="4" styleClass="status-dot-sub"/>
-                <Label fx:id="wsStatusLabel" text="Connecting..." styleClass="status-footer-text"/>
-            </HBox>
-        </VBox>
+
+                <!-- Messages Title & Compose -->
+                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="messages-title-bar">
+                    <Label text="Messages" styleClass="messages-heading"/>
+                    <Label fx:id="convCountLabel" text="5" styleClass="messages-count"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="✎" onAction="#handleShowDirectory" styleClass="compose-btn" tooltip="$ttCompose">
+                        <tooltip><Tooltip fx:id="ttCompose" text="New Message"/></tooltip>
+                    </Button>
+                </HBox>
+
+                <!-- Search Input Pill -->
+                <VBox styleClass="search-box-wrapper">
+                    <padding><Insets top="12" bottom="10"/></padding>
+                    <TextField fx:id="searchField" promptText="🔍 Search messages...  ⌘ K" styleClass="search-pill-input"/>
+                </VBox>
+
+                <!-- Filter Chips -->
+                <HBox spacing="6" styleClass="filter-chips-row">
+                    <padding><Insets bottom="12"/></padding>
+                    <Button fx:id="chipAllBtn" text="All messages" onAction="#handleFilterAll" styleClass="filter-chip, active-chip"/>
+                    <Button fx:id="chipUnreadBtn" text="Unread" onAction="#handleFilterUnread" styleClass="filter-chip"/>
+                    <Button fx:id="chipDirBtn" text="Directory" onAction="#handleShowDirectory" styleClass="filter-chip"/>
+                </HBox>
+
+                <!-- Section Label -->
+                <HBox alignment="CENTER_LEFT" styleClass="section-header">
+                    <padding><Insets bottom="6"/></padding>
+                    <Label text="RECENT" styleClass="section-title"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text="↕" styleClass="sort-icon"/>
+                </HBox>
+
+                <!-- Contacts Scroll List -->
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="contacts-scroll-pane">
+                    <VBox fx:id="userListContainer" spacing="4" styleClass="contacts-vbox"/>
+                </ScrollPane>
+
+                <!-- Sidebar Footer Status -->
+                <HBox alignment="CENTER_LEFT" spacing="6" styleClass="sidebar-sync-footer">
+                    <padding><Insets top="10"/></padding>
+                    <Label text="✓" styleClass="sync-check"/>
+                    <Label text="Everything is sync. You're right on time." styleClass="sync-text"/>
+                </HBox>
+            </VBox>
+        </HBox>
     </left>
 
-    <!-- CENTER CHAT AREA -->
+    <!-- CENTER CHAT CANVAS -->
     <center>
-        <StackPane styleClass="chat-center-stack">
+        <StackPane styleClass="chat-canvas">
             <!-- Empty State View -->
-            <VBox fx:id="emptyStateBox" alignment="CENTER" spacing="16" styleClass="empty-state-vbox">
-                <Label text="⚡" styleClass="empty-icon"/>
-                <Label text="Welcome to messiQ" styleClass="empty-title"/>
-                <Label text="Select a contact from the sidebar to start real-time messaging." styleClass="empty-desc"/>
-                <HBox alignment="CENTER" spacing="12">
-                    <Label text="• WebSocket Real-Time" styleClass="badge-pill"/>
-                    <Label text="• MySQL Persistence" styleClass="badge-pill"/>
-                    <Label text="• Photo Sharing" styleClass="badge-pill"/>
+            <VBox fx:id="emptyStateBox" alignment="CENTER" spacing="16" styleClass="empty-canvas-box">
+                <Label text="💬" styleClass="empty-big-icon"/>
+                <Label text="Welcome to messiQ" styleClass="empty-headline"/>
+                <Label text="Select a conversation to start real-time messaging with live presence and photo sharing." styleClass="empty-subtext"/>
+                <HBox alignment="CENTER" spacing="10">
+                    <Label text="• WebSocket Real-Time" styleClass="feature-tag"/>
+                    <Label text="• Photo Sharing" styleClass="feature-tag"/>
+                    <Label text="• Light &amp; Dark Theme" styleClass="feature-tag"/>
                 </HBox>
             </VBox>
 
             <!-- Active Conversation View -->
-            <VBox fx:id="activeChatBox" visible="false" managed="false" styleClass="active-chat-vbox">
-                <!-- Chat Header -->
+            <VBox fx:id="activeChatBox" visible="false" managed="false" styleClass="active-chat-wrapper">
+                <!-- Chat Top Header -->
                 <HBox alignment="CENTER_LEFT" spacing="12" styleClass="chat-top-header">
                     <padding>
-                        <Insets top="14" right="20" bottom="14" left="20"/>
+                        <Insets top="12" right="24" bottom="12" left="24"/>
                     </padding>
-                    <Circle fx:id="activePeerStatusCircle" radius="6"/>
-                    <VBox spacing="2">
-                        <Label fx:id="activePeerNameLabel" text="Contact Name" styleClass="active-header-name"/>
-                        <Label fx:id="activePeerStatusLabel" text="Offline" styleClass="active-header-status"/>
+                    <StackPane>
+                        <Circle fx:id="activePeerAvatarCircle" radius="20" styleClass="avatar-circle-md"/>
+                        <Circle fx:id="activePeerStatusCircle" radius="5" styleClass="status-dot-online" StackPane.alignment="BOTTOM_RIGHT"/>
+                    </StackPane>
+                    <VBox spacing="1">
+                        <Label fx:id="activePeerNameLabel" text="Maya Chen" styleClass="active-peer-name"/>
+                        <Label fx:id="activePeerStatusLabel" text="Online now • Photographer, good friend" styleClass="active-peer-status"/>
                     </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <HBox alignment="CENTER_RIGHT" spacing="8">
+                        <Button text="📞" styleClass="header-icon-btn" tooltip="$ttCall"><tooltip><Tooltip fx:id="ttCall" text="Voice Call"/></tooltip></Button>
+                        <Button text="📹" styleClass="header-icon-btn" tooltip="$ttVideo"><tooltip><Tooltip fx:id="ttVideo" text="Video Call"/></tooltip></Button>
+                        <Button text="🔍" styleClass="header-icon-btn" tooltip="$ttSearchChat"><tooltip><Tooltip fx:id="ttSearchChat" text="Search Conversation"/></tooltip></Button>
+                        <Button text="◫" onAction="#handleRefreshHistory" styleClass="header-icon-btn" tooltip="$ttRefresh"><tooltip><Tooltip fx:id="ttRefresh" text="Refresh History"/></tooltip></Button>
+                    </HBox>
                 </HBox>
 
-                <!-- Message Feed -->
-                <ScrollPane fx:id="messageScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="message-scroll-pane">
-                    <VBox fx:id="messageContainer" spacing="8" styleClass="message-vbox">
+                <!-- Pinned Story Banner -->
+                <HBox alignment="CENTER_LEFT" spacing="8" styleClass="pinned-banner">
+                    <padding><Insets top="7" right="24" bottom="7" left="24"/></padding>
+                    <Label text="📌" styleClass="pinned-icon"/>
+                    <Label text="Pinned" styleClass="pinned-tag"/>
+                    <Label text="A slower kind of story — our November moodboard" styleClass="pinned-desc"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text="›" styleClass="pinned-arrow"/>
+                </HBox>
+
+                <!-- Date Divider -->
+                <HBox alignment="CENTER" styleClass="date-divider-box">
+                    <padding><Insets top="12" bottom="6"/></padding>
+                    <Label text="Today, October 29" styleClass="date-divider-pill"/>
+                </HBox>
+
+                <!-- Messages Feed -->
+                <ScrollPane fx:id="messageScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="messages-scroll-area">
+                    <VBox fx:id="messageContainer" spacing="12" styleClass="messages-feed-vbox">
                         <padding>
-                            <Insets top="16" right="20" bottom="16" left="20"/>
+                            <Insets top="10" right="28" bottom="10" left="28"/>
                         </padding>
                     </VBox>
                 </ScrollPane>
 
+                <!-- Typing Indicator Pill -->
+                <HBox fx:id="typingBox" alignment="CENTER_LEFT" spacing="6" styleClass="typing-bar" visible="false" managed="false">
+                    <padding><Insets top="4" right="28" bottom="4" left="28"/></padding>
+                    <HBox alignment="CENTER_LEFT" spacing="6" styleClass="typing-pill">
+                        <Label text="•••" styleClass="typing-dots"/>
+                        <Label fx:id="typingLabel" text="Maya is typing" styleClass="typing-text"/>
+                    </HBox>
+                </HBox>
+
                 <!-- Attachment Preview Bar -->
                 <HBox fx:id="attachmentPreviewBar" alignment="CENTER_LEFT" spacing="10" styleClass="attachment-bar" visible="false" managed="false">
-                    <padding>
-                        <Insets top="6" right="20" bottom="6" left="20"/>
-                    </padding>
+                    <padding><Insets top="6" right="28" bottom="6" left="28"/></padding>
                     <Label text="📎"/>
-                    <Label fx:id="attachedFileNameLabel" text="file.png" styleClass="attached-name"/>
+                    <Label fx:id="attachedFileNameLabel" text="photo.png" styleClass="attached-name"/>
                     <Button text="✕" onAction="#clearAttachment" styleClass="chip-remove-btn"/>
                 </HBox>
 
-                <!-- Chat Input Footer -->
-                <HBox alignment="CENTER_LEFT" spacing="10" styleClass="chat-footer-bar">
-                    <padding>
-                        <Insets top="12" right="20" bottom="16" left="20"/>
-                    </padding>
-                    <Button fx:id="attachBtn" text="📎" onAction="#handleAttachFile" styleClass="btn-icon"/>
-                    <TextField fx:id="messageInputField" promptText="Write a message... (Press Enter to send)" onAction="#handleSendMessage" HBox.hgrow="ALWAYS" styleClass="chat-input-field"/>
-                    <Button fx:id="sendBtn" text="Send ➤" onAction="#handleSendMessage" defaultButton="true" styleClass="btn-primary-send"/>
-                </HBox>
+                <!-- Floating Rounded Input Composer -->
+                <VBox alignment="CENTER" styleClass="composer-container">
+                    <padding><Insets top="8" right="28" bottom="12" left="28"/></padding>
+                    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="composer-pill-card">
+                        <padding><Insets top="8" right="10" bottom="8" left="14"/></padding>
+                        <Button fx:id="attachBtn" text="+" onAction="#handleAttachFile" styleClass="composer-plus-btn" tooltip="$ttAttach">
+                            <tooltip><Tooltip fx:id="ttAttach" text="Attach Photo or Document"/></tooltip>
+                        </Button>
+                        <TextField fx:id="messageInputField" promptText="Write a little something..." onAction="#handleSendMessage" HBox.hgrow="ALWAYS" styleClass="composer-text-input"/>
+                        <Button text="😊" onAction="#handleInsertEmoji" styleClass="composer-tool-btn"/>
+                        <Button text="🎙" onAction="#handleSendVoiceNote" styleClass="composer-tool-btn"/>
+                        <Button fx:id="sendBtn" text="➤" onAction="#handleSendMessage" defaultButton="true" styleClass="composer-send-btn"/>
+                    </HBox>
+                    <HBox alignment="CENTER_LEFT" spacing="8" styleClass="composer-meta-line">
+                        <padding><Insets top="4" left="14" right="14"/></padding>
+                        <Label text="🔒 End-to-end encrypted • You and contact only" styleClass="meta-notice-text"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Enter to send • Shift + Enter for new line" styleClass="meta-notice-text"/>
+                    </HBox>
+                </VBox>
             </VBox>
         </StackPane>
     </center>

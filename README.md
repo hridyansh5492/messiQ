@@ -98,8 +98,16 @@
    * Multipart file upload service with safe unique file naming.
    * Inline photo previews in chat bubbles and clickable attachments for documents.
 6. **Dual Client Support**
-   * **JavaFX 21 Desktop Client**: Full-featured desktop application with custom dark theme, smooth animations, and dialog choosers.
+   * **JavaFX 21 Desktop Client**: Full-featured desktop application with custom theme switching, smooth animations, dialog choosers, and floating pill composer.
    * **Companion Web Client**: Built-in responsive browser dashboard served directly from Spring Boot (`http://localhost:8080`).
+7. **Figma-Inspired Modern Design System (3-Column Layout)**
+   * **Slim Left Navigation Rail**: Quick navigation icons (Apps, Messages, Contacts, Bookmarks, Notifications, Theme Switcher, Settings, and Profile Avatar with status indicator).
+   * **Messages Directory Column**: Message count badge, compose shortcut, full-text live contact search (`⌘ K`), and filter tabs (`All messages`, `Unread`, `Groups`).
+   * **Celadon Chat Canvas**: Header with contact info, status bullet, search and call actions; pinned banner ("📌 A slower kind of story — our November moodboard"); photo message cards ("Casa Olivo • Mallorca, Spain"); audio voice capsule preview; and floating pill composer with instant attachment, emoji, and voice recording buttons.
+8. **Dynamic Light & Dark Mode Theming**
+   * Instant toggle switch available in both the Web Client (persisted in `localStorage`) and the JavaFX Desktop Client.
+   * **Light Mode (Figma Warm Ivory & Celadon)**: Warm Ivory surfaces (`#f6f5f0`), Celadon chat canvas (`#e8efe9`), high-contrast Obsidian incoming bubbles (`#181e1d`), crisp White outgoing bubbles (`#ffffff`), and Emerald accents (`#10b981`).
+   * **Dark Mode (Obsidian & Forest Slate)**: Deep Obsidian rail (`#0f1312`), Forest Slate directory (`#151c19`), Charcoal canvas (`#1b2420`), Emerald outgoing bubbles (`#059669`), and Slate incoming bubbles (`#222e2a`).
 
 ---
 
@@ -248,6 +256,7 @@ The database schema (`schema.mysql.sql`) is compatible with MySQL 8.0+:
 ### 1. Pre-Seeded Demo Accounts
 The database automatically seeds test accounts on first launch:
 * `hridyansh` / `messiq123` (Hridyansh Sati)
+* `maya` / `messiq123` (Maya Chen - Photographer & good friend, from Figma design)
 * `megha` / `messiq123` (Megha Dhami)
 * `hrithik` / `messiq123` (Hrithik Bashera)
 * `janmejay` / `messiq123` (Prof. Janmejay Pant)
@@ -334,9 +343,9 @@ messiQ/
 │       │       ├── application.properties    # Default profile configuration
 │       │       ├── application-mysql.properties # MySQL profile configuration
 │       │       └── static/                   # Embedded Web Companion Client
-│       │           ├── index.html            # Messenger dashboard markup
-│       │           ├── css/styles.css        # Modern glassmorphism dark theme
-│       │           └── js/app.js             # STOMP/SockJS real-time engine
+│       │           ├── index.html            # Figma-aligned 3-column messenger markup
+│       │           ├── css/styles.css        # Figma design system (Light/Dark mode)
+│       │           └── js/app.js             # STOMP/SockJS real-time engine & theme controller
 │       └── test/                             # Automated integration tests
 │
 └── messiq-client/                            # JavaFX 21 Desktop Client
@@ -348,8 +357,8 @@ messiQ/
             │   ├── controller/               # Login and MainChat controllers
             │   └── network/                  # ApiClient, StompWebSocketClient, Session
             └── resources/com/messiq/client/
-                ├── fxml/                     # login.fxml and main.fxml
-                └── css/styles.css            # Custom desktop dark stylesheet
+                ├── fxml/                     # login.fxml and 3-column main.fxml
+                └── css/styles.css            # Desktop Light & Dark mode stylesheet
 ```
 
 ---

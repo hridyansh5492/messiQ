@@ -15,60 +15,70 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class MainChatController {
 
-    @FXML private Label currentUserNameLabel;
-    @FXML private Label currentUserHandleLabel;
-    @FXML private Circle currentUserStatusCircle;
-
-    @FXML private TextField searchField;
-    @FXML private VBox userListContainer;
+    @FXML private BorderPane rootPane;
+    @FXML private Circle topWsCircle;
     @FXML private Label wsStatusLabel;
-    @FXML private Circle wsStatusCircle;
+    @FXML private Label topDateLabel;
+    @FXML private Circle topUserAvatarCircle;
+    @FXML private Circle railUserAvatarCircle;
+    @FXML private Button themeToggleBtn;
+
+    // Sidebar
+    @FXML private Label convCountLabel;
+    @FXML private TextField searchField;
+    @FXML private Button chipAllBtn;
+    @FXML private Button chipUnreadBtn;
+    @FXML private Button chipDirBtn;
+    @FXML private VBox userListContainer;
 
     // Chat Area
     @FXML private VBox emptyStateBox;
     @FXML private VBox activeChatBox;
+    @FXML private Circle activePeerAvatarCircle;
+    @FXML private Circle activePeerStatusCircle;
     @FXML private Label activePeerNameLabel;
     @FXML private Label activePeerStatusLabel;
-    @FXML private Circle activePeerStatusCircle;
 
     @FXML private ScrollPane messageScrollPane;
     @FXML private VBox messageContainer;
+    @FXML private HBox typingBox;
+    @FXML private Label typingLabel;
+
+    @FXML private HBox attachmentPreviewBar;
+    @FXML private Label attachedFileNameLabel;
     @FXML private TextField messageInputField;
     @FXML private Button sendBtn;
     @FXML private Button attachBtn;
-    @FXML private HBox attachmentPreviewBar;
-    @FXML private Label attachedFileNameLabel;
 
     private final ApiClient apiClient = SessionManager.getInstance().getApiClient();
     private final StompWebSocketClient stompClient = SessionManager.getInstance().getStompClient();
     private final ObjectMapper objectMapper = apiClient.getObjectMapper();
 
     private List<Map<String, Object>> allUsers = new ArrayList<>();
+    private List<Map<String, Object>> conversations = new ArrayList<>();
     private Map<String, Object> activePeer = null;
     private File pendingMediaFile = null;
     private String uploadedMediaUrl = null;
+    private boolean isDarkMode = false;
+    private String currentTab = "all";
 
     @FXML
     public void initialize() {
-        Map<String, Object> currentUser = SessionManager.getInstance().getCurrentUser();
-        if (currentUser != null) {
-            currentUserNameLabel.setText((String) currentUser.getOrDefault("displayName", currentUser.get("username")));
-            currentUserHandleLabel.setText("@" + currentUser.get("username"));
-            currentUserStatusCircle.setStyle("-fx-fill: #10b981;");
-        }
+        // Set top date
+        topDateLabel.setText(LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, MMMM d")));
 
         emptyStateBox.setVisible(true);
         emptyStateBox.setManaged(true);
@@ -76,11 +86,15 @@ public class MainChatController {
         activeChatBox.setManaged(false);
         attachmentPreviewBar.setVisible(false);
         attachmentPreviewBar.setManaged(false);
+        if (typingBox != null) {
+            typingBox.setVisible(false);
+            typingBox.setManaged(false);
+        }
 
         initWebSocketConnection();
         loadUsersList("");
 
-        // Auto-scroll to bottom when messages are added
+        // Auto scroll to bottom
         messageContainer.heightProperty().addListener((obs, oldVal, newVal) -> {
             messageScrollPane.setVvalue(1.0);
         });
@@ -91,14 +105,62 @@ public class MainChatController {
         });
     }
 
+    /**
+     * Theme switcher: Light Mode (Figma warm celadon) <-> Dark Mode (Obsidian & Forest)
+     */
+    @FXML
+    public void handleToggleTheme(ActionEvent event) {
+        isDarkMode = !isDarkMode;
+        if (isDarkMode) {
+            rootPane.getStyleClass().remove("theme-light");
+            rootPane.getStyleClass().add("theme-dark");
+            themeToggleBtn.setText("☀️");
+        } else {
+            rootPane.getStyleClass().remove("theme-dark");
+            rootPane.getStyleClass().add("theme-light");
+            themeToggleBtn.setText("🌙");
+        }
+    }
+
+    @FXML
+    public void handleFilterAll(ActionEvent event) {
+        currentTab = "all";
+        updateFilterChipStyles();
+        loadUsersList(searchField.getText());
+    }
+
+    @FXML
+    public void handleFilterUnread(ActionEvent event) {
+        currentTab = "unread";
+        updateFilterChipStyles();
+        loadUsersList(searchField.getText());
+    }
+
+    @FXML
+    public void handleShowDirectory(ActionEvent event) {
+        currentTab = "directory";
+        updateFilterChipStyles();
+        loadUsersList(searchField.getText());
+    }
+
+    private void updateFilterChipStyles() {
+        chipAllBtn.getStyleClass().remove("active-chip");
+        chipUnreadBtn.getStyleClass().remove("active-chip");
+        chipDirBtn.getStyleClass().remove("active-chip");
+
+        if ("all".equals(currentTab)) chipAllBtn.getStyleClass().add("active-chip");
+        else if ("unread".equals(currentTab)) chipUnreadBtn.getStyleClass().add("active-chip");
+        else if ("directory".equals(currentTab)) chipDirBtn.getStyleClass().add("active-chip");
+    }
+
     private void initWebSocketConnection() {
         stompClient.setConnectionStateListener(connected -> {
             if (connected) {
-                wsStatusLabel.setText("Connected (Real-time)");
-                wsStatusCircle.setStyle("-fx-fill: #10b981;");
+                wsStatusLabel.setText("All systems connected");
+                topWsCircle.setStyle("-fx-fill: #10b981;");
             } else {
                 wsStatusLabel.setText("Disconnected");
-                wsStatusCircle.setStyle("-fx-fill: #ef4444;");
+                topWsCircle.setStyle("-fx-fill: #ef4444;");
             }
         });
 
@@ -106,13 +168,9 @@ public class MainChatController {
         String username = SessionManager.getInstance().getCurrentUsername();
         stompClient.connect(username, userId);
 
-        // Algorithm 5: Subscribe to presence updates
         stompClient.subscribe("/topic/status", this::handlePresenceUpdate);
-
-        // Direct messages queue
         stompClient.subscribe("/user/queue/messages", this::handleIncomingMessageJson);
 
-        // Broadcast current user is online
         try {
             Map<String, Object> statusPayload = new HashMap<>();
             statusPayload.put("userId", userId);
@@ -176,7 +234,13 @@ public class MainChatController {
                 }
                 Platform.runLater(() -> {
                     allUsers = users;
+                    convCountLabel.setText(String.valueOf(users.size()));
                     renderUserItems(users);
+
+                    // Auto select first user if none selected
+                    if (activePeer == null && !users.isEmpty()) {
+                        selectPeer(users.get(0));
+                    }
                 });
             } catch (Exception e) {
                 e.printStackTrace();
@@ -190,30 +254,33 @@ public class MainChatController {
         for (Map<String, Object> u : users) {
             HBox card = new HBox(12);
             card.setAlignment(Pos.CENTER_LEFT);
-            card.getStyleClass().add("user-card");
-            card.setPadding(new Insets(10, 14, 10, 14));
+            card.getStyleClass().add("contact-card-box");
+            card.setPadding(new Insets(10, 12, 10, 12));
 
-            Circle statusDot = new Circle(5);
+            Circle statusDot = new Circle(4);
             String status = (String) u.getOrDefault("status", "OFFLINE");
-            if ("ONLINE".equalsIgnoreCase(status)) {
-                statusDot.setStyle("-fx-fill: #10b981;");
-            } else if ("AWAY".equalsIgnoreCase(status)) {
-                statusDot.setStyle("-fx-fill: #f59e0b;");
-            } else {
-                statusDot.setStyle("-fx-fill: #64748b;");
-            }
+            statusDot.setStyle("ONLINE".equalsIgnoreCase(status) ? "-fx-fill: #10b981;" : "-fx-fill: #94a3b8;");
 
             VBox infoBox = new VBox(2);
+            HBox.setHgrow(infoBox, Priority.ALWAYS);
+
+            HBox topRow = new HBox(4);
             Label nameLbl = new Label((String) u.getOrDefault("displayName", u.get("username")));
-            nameLbl.getStyleClass().add("card-name");
-            Label handleLbl = new Label("@" + u.get("username") + " • " + status.toLowerCase());
-            handleLbl.getStyleClass().add("card-handle");
-            infoBox.getChildren().addAll(nameLbl, handleLbl);
+            nameLbl.getStyleClass().add("contact-card-name");
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label timeLbl = new Label("now");
+            timeLbl.setStyle("-fx-font-size: 10.5px; -fx-text-fill: #868f8c;");
+            topRow.getChildren().addAll(nameLbl, spacer, timeLbl);
+
+            Label previewLbl = new Label("@" + u.get("username") + " • " + status.toLowerCase());
+            previewLbl.getStyleClass().add("contact-card-preview");
+            infoBox.getChildren().addAll(topRow, previewLbl);
 
             card.getChildren().addAll(statusDot, infoBox);
 
             if (activePeer != null && activePeer.get("id").equals(u.get("id"))) {
-                card.getStyleClass().add("active-card");
+                card.getStyleClass().add("active-contact-card");
             }
 
             card.setOnMouseClicked(e -> selectPeer(u));
@@ -234,27 +301,25 @@ public class MainChatController {
         activePeerNameLabel.setText((String) peer.getOrDefault("displayName", peer.get("username")));
         updateActiveHeaderStatus();
 
-        // Subscribe to conversation channel topic
         Long myId = SessionManager.getInstance().getCurrentUserId();
         Long peerId = Long.parseLong(peer.get("id").toString());
         String convChannel = Math.min(myId, peerId) + "." + Math.max(myId, peerId);
         stompClient.subscribe("/topic/messages." + convChannel, this::handleIncomingMessageJson);
 
-        // Algorithm 4: Retrieve Message History
         loadMessageHistory();
     }
 
     private void updateActiveHeaderStatus() {
         if (activePeer == null) return;
         String status = (String) activePeer.getOrDefault("status", "OFFLINE");
-        activePeerStatusLabel.setText(status.substring(0, 1).toUpperCase() + status.substring(1).toLowerCase());
-        if ("ONLINE".equalsIgnoreCase(status)) {
-            activePeerStatusCircle.setStyle("-fx-fill: #10b981;");
-        } else if ("AWAY".equalsIgnoreCase(status)) {
-            activePeerStatusCircle.setStyle("-fx-fill: #f59e0b;");
-        } else {
-            activePeerStatusCircle.setStyle("-fx-fill: #64748b;");
-        }
+        boolean isOnline = "ONLINE".equalsIgnoreCase(status);
+        activePeerStatusLabel.setText(isOnline ? "Online now • Available" : "Offline • Last seen recently");
+        activePeerStatusCircle.setStyle(isOnline ? "-fx-fill: #10b981;" : "-fx-fill: #94a3b8;");
+    }
+
+    @FXML
+    public void handleRefreshHistory(ActionEvent event) {
+        loadMessageHistory();
     }
 
     /**
@@ -279,64 +344,81 @@ public class MainChatController {
         }).start();
     }
 
+    /**
+     * Append message bubbles matching the Figma design:
+     * - Incoming: Dark obsidian bubble with white text
+     * - Outgoing: White bubble with dark text + "Read ✓✓"
+     */
     private void appendMessageBubble(Map<String, Object> msg) {
         Long myId = SessionManager.getInstance().getCurrentUserId();
         Long senderId = Long.parseLong(msg.get("senderId").toString());
         boolean isSent = senderId.equals(myId);
 
-        VBox bubbleBox = new VBox(4);
-        bubbleBox.setMaxWidth(460);
+        VBox bubbleWrapper = new VBox(4);
+        bubbleWrapper.setMaxWidth(480);
 
-        HBox bubble = new HBox(8);
-        bubble.setPadding(new Insets(10, 14, 10, 14));
-        bubble.getStyleClass().add(isSent ? "bubble-sent" : "bubble-received");
+        // Content container
+        VBox bubbleCard = new VBox(6);
+        bubbleCard.setPadding(new Insets(10, 16, 10, 16));
+        bubbleCard.getStyleClass().add(isSent ? "bubble-outgoing" : "bubble-incoming");
 
-        VBox contentBox = new VBox(6);
-
-        // Check for media attachment
+        // Photo Attachment or Image Card
         String mediaUrl = (String) msg.get("mediaUrl");
         if (mediaUrl != null && !mediaUrl.isEmpty()) {
-            if (mediaUrl.matches(".*\\.(?i)(jpg|jpeg|png|gif|webp|svg)$")) {
+            if (mediaUrl.matches(".*\\.(?i)(jpg|jpeg|png|gif|webp)$")) {
                 try {
-                    ImageView iv = new ImageView(new Image(mediaUrl, 280, 200, true, true));
+                    ImageView iv = new ImageView(new Image(mediaUrl, 320, 200, true, true));
                     iv.setStyle("-fx-background-radius: 8px;");
-                    contentBox.getChildren().add(iv);
+                    bubbleCard.getChildren().add(iv);
+
+                    Label locLbl = new Label("📍 " + msg.getOrDefault("fileName", "Casa Olivo • Mallorca, Spain"));
+                    locLbl.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
+                    bubbleCard.getChildren().add(locLbl);
                 } catch (Exception ignored) {}
             } else {
                 Label fileLbl = new Label("📎 " + msg.getOrDefault("fileName", "Attachment"));
-                fileLbl.setStyle("-fx-font-weight: bold; -fx-text-fill: #a5b4fc;");
-                contentBox.getChildren().add(fileLbl);
+                fileLbl.setStyle("-fx-font-weight: bold; -fx-text-fill: #60a5fa;");
+                bubbleCard.getChildren().add(fileLbl);
             }
         }
 
+        // Audio Voice Note Simulation
         String content = (String) msg.get("content");
-        if (content != null && !content.isEmpty()) {
+        if ("[VOICE_NOTE]".equals(content)) {
+            HBox audioRow = new HBox(8);
+            audioRow.setAlignment(Pos.CENTER_LEFT);
+            Label playIcon = new Label("▶ 0:24");
+            playIcon.setStyle("-fx-text-fill: #ffffff; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-color: rgba(255,255,255,0.2); -fx-padding: 4px 8px; -fx-background-radius: 12px;");
+            Label wave = new Label("|||l|l|||l||l|");
+            wave.setStyle("-fx-text-fill: #ffffff; -fx-font-weight: bold;");
+            audioRow.getChildren().addAll(playIcon, wave);
+            bubbleCard.getChildren().add(audioRow);
+        } else if (content != null && !content.isEmpty()) {
             Label textLbl = new Label(content);
             textLbl.setWrapText(true);
-            textLbl.getStyleClass().add(isSent ? "bubble-text-sent" : "bubble-text-received");
-            contentBox.getChildren().add(textLbl);
+            textLbl.getStyleClass().add(isSent ? "bubble-text-outgoing" : "bubble-text-incoming");
+            bubbleCard.getChildren().add(textLbl);
         }
 
-        bubble.getChildren().add(contentBox);
-        bubbleBox.getChildren().add(bubble);
+        bubbleWrapper.getChildren().add(bubbleCard);
 
-        // Timestamp & status
-        HBox metaBox = new HBox(6);
-        metaBox.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        // Metadata: Time + Read Check
+        HBox metaRow = new HBox(6);
+        metaRow.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
         Label timeLbl = new Label(formatTime(msg.get("timestamp")));
-        timeLbl.getStyleClass().add("message-time");
-        metaBox.getChildren().add(timeLbl);
+        timeLbl.getStyleClass().add("meta-time-text");
+        metaRow.getChildren().add(timeLbl);
         if (isSent) {
-            Label checkLbl = new Label("✓✓");
-            checkLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #94a3b8;");
-            metaBox.getChildren().add(checkLbl);
+            Label readLbl = new Label("• Read ✓✓");
+            readLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #10b981;");
+            metaRow.getChildren().add(readLbl);
         }
-        bubbleBox.getChildren().add(metaBox);
+        bubbleWrapper.getChildren().add(metaRow);
 
         HBox row = new HBox();
         row.setAlignment(isSent ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
         row.setPadding(new Insets(4, 10, 4, 10));
-        row.getChildren().add(bubbleBox);
+        row.getChildren().add(bubbleWrapper);
 
         messageContainer.getChildren().add(row);
     }
@@ -387,8 +469,6 @@ public class MainChatController {
                 payload.put("timestamp", LocalDateTime.now().toString());
 
                 String json = objectMapper.writeValueAsString(payload);
-
-                // Step 5: Send the message through WebSocket
                 stompClient.send("/app/chat.sendMessage", json);
 
                 Platform.runLater(() -> {
@@ -407,11 +487,7 @@ public class MainChatController {
     @FXML
     public void handleAttachFile(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select Photo or Document to Send");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Images and Documents", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.pdf", "*.txt", "*.doc", "*.docx"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
+        fileChooser.setTitle("Select Photo or File to Share");
         Stage stage = (Stage) attachBtn.getScene().getWindow();
         File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
@@ -431,12 +507,23 @@ public class MainChatController {
     }
 
     @FXML
-    public void handleLogout(ActionEvent event) {
+    public void handleInsertEmoji(ActionEvent event) {
+        messageInputField.appendText(" 🌿");
+    }
+
+    @FXML
+    public void handleSendVoiceNote(ActionEvent event) {
+        messageInputField.setText("[VOICE_NOTE]");
+        handleSendMessage(event);
+    }
+
+    @FXML
+    public void handleLogout(MouseEvent event) {
         stompClient.disconnect();
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/messiq/client/fxml/login.fxml"));
             Parent root = loader.load();
-            Stage stage = (Stage) userListContainer.getScene().getWindow();
+            Stage stage = (Stage) rootPane.getScene().getWindow();
             Scene scene = new Scene(root, 480, 640);
             scene.getStylesheets().add(getClass().getResource("/com/messiq/client/css/styles.css").toExternalForm());
             stage.setScene(scene);

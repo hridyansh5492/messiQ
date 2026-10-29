@@ -1,11 +1,13 @@
 /**
  * messiQ - Real-Time Messenger Application Client Engine
  * Implements:
- * Algorithm 1: User Registration
- * Algorithm 2: User Login
- * Algorithm 3: Send Message (WebSocket STOMP + REST)
- * Algorithm 4: Retrieve Message History
- * Algorithm 5: Online/Offline Status Tracking
+ * - Exact Figma Design (3-Column Layout: Icon Rail, Messages List, Chat Canvas)
+ * - Light Mode (Warm Ivory & Celadon Green) / Dark Mode (Obsidian & Forest)
+ * - Algorithm 1: User Registration
+ * - Algorithm 2: User Login
+ * - Algorithm 3: Send Message (WebSocket STOMP + REST)
+ * - Algorithm 4: Retrieve Message History
+ * - Algorithm 5: Online/Offline Status Tracking
  */
 
 // Global State
@@ -21,12 +23,54 @@ let activeSubscription = null;
 let activeTypingSubscription = null;
 let pendingMediaFile = null;
 let typingTimeout = null;
-let currentSidebarTab = 'conversations';
+let currentSidebarTab = 'conversations'; // 'conversations', 'unread', 'all'
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    updateTopbarDate();
     checkStoredSession();
 });
+
+// =========================================================
+// THEME SWITCHER (LIGHT / DARK MODE)
+// =========================================================
+
+function initTheme() {
+    const savedTheme = localStorage.getItem('messiq_theme') || 'theme-light';
+    applyTheme(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.body.classList.contains('theme-dark') ? 'theme-dark' : 'theme-light';
+    const newTheme = currentTheme === 'theme-light' ? 'theme-dark' : 'theme-light';
+    applyTheme(newTheme);
+    localStorage.setItem('messiq_theme', newTheme);
+}
+
+function applyTheme(theme) {
+    document.body.classList.remove('theme-light', 'theme-dark');
+    document.body.classList.add(theme);
+
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) {
+        if (theme === 'theme-dark') {
+            themeIcon.className = 'fa-solid fa-sun';
+            themeIcon.parentElement.title = 'Switch to Light Mode (Figma Warm Celadon)';
+        } else {
+            themeIcon.className = 'fa-solid fa-moon';
+            themeIcon.parentElement.title = 'Switch to Dark Mode (Obsidian & Forest)';
+        }
+    }
+}
+
+function updateTopbarDate() {
+    const dateEl = document.getElementById('topbarDate');
+    if (dateEl) {
+        const options = { weekday: 'short', month: 'long', day: 'numeric' };
+        dateEl.textContent = new Date().toLocaleDateString('en-US', options);
+    }
+}
 
 function checkStoredSession() {
     const storedUser = localStorage.getItem('messiq_user');
@@ -36,10 +80,13 @@ function checkStoredSession() {
             currentUser = JSON.parse(storedUser);
             authToken = storedToken;
             initMessengerDashboard();
+            return;
         } catch (e) {
             localStorage.clear();
         }
     }
+    // Show auth modal overlay if not logged in
+    document.getElementById('authScreen').classList.remove('hidden');
 }
 
 // =========================================================
@@ -110,7 +157,7 @@ async function handleLogin(e) {
             showAuthAlert(data.message || 'Invalid username or password', false);
         }
     } catch (err) {
-        showAuthAlert('Unable to connect to messiQ server. Please ensure backend is running.', false);
+        showAuthAlert('Unable to connect to messiQ server on port 8080.', false);
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<span>Sign In</span> <i class="fa-solid fa-arrow-right"></i>`;
@@ -165,7 +212,7 @@ async function handleRegister(e) {
 }
 
 function handleLogout() {
-    if (confirm('Are you sure you want to log out of messiQ?')) {
+    if (confirm('Are you sure you want to sign out of messiQ?')) {
         // Broadcast offline status
         if (stompClient && isConnected && currentUser) {
             stompClient.send('/app/user.status', {}, JSON.stringify({
@@ -175,12 +222,12 @@ function handleLogout() {
             }));
             stompClient.disconnect();
         }
-        localStorage.clear();
+        localStorage.removeItem('messiq_user');
+        localStorage.removeItem('messiq_token');
         currentUser = null;
         authToken = null;
         activePeer = null;
 
-        document.getElementById('mainScreen').classList.add('hidden');
         document.getElementById('authScreen').classList.remove('hidden');
     }
 }
@@ -190,19 +237,19 @@ function handleLogout() {
 // =========================================================
 
 function connectWebSocket() {
-    const statusDot = document.getElementById('wsStatusDot');
-    const statusText = document.getElementById('wsStatusText');
-    statusDot.className = 'status-dot connecting';
-    statusText.textContent = 'Connecting to WebSocket...';
+    const topWsDot = document.getElementById('topWsDot');
+    const topWsText = document.getElementById('topWsText');
+    topWsDot.className = 'status-indicator-dot offline';
+    topWsText.textContent = 'Connecting...';
 
     const socket = new SockJS('/ws');
     stompClient = Stomp.over(socket);
-    stompClient.debug = null; // suppress noisy logs
+    stompClient.debug = null; // suppress noisy frame logs
 
     stompClient.connect({}, (frame) => {
         isConnected = true;
-        statusDot.className = 'status-dot connected';
-        statusText.textContent = 'Connected (Real-time)';
+        topWsDot.className = 'status-indicator-dot online';
+        topWsText.textContent = 'All systems connected';
 
         // 1. Subscribe to presence broadcasts (Algorithm 5)
         stompClient.subscribe('/topic/status', (msg) => {
@@ -210,7 +257,7 @@ function connectWebSocket() {
             handlePresenceUpdate(statusUpdate);
         });
 
-        // 2. Subscribe to user-specific direct messages
+        // 2. Subscribe to user direct messages queue
         stompClient.subscribe('/user/queue/messages', (msg) => {
             const chatMessage = JSON.parse(msg.body);
             handleIncomingMessage(chatMessage);
@@ -224,8 +271,8 @@ function connectWebSocket() {
         }));
     }, (error) => {
         isConnected = false;
-        statusDot.className = 'status-dot disconnected';
-        statusText.textContent = 'Disconnected. Reconnecting...';
+        topWsDot.className = 'status-indicator-dot offline';
+        topWsText.textContent = 'Disconnected';
         setTimeout(connectWebSocket, 4000);
     });
 }
@@ -234,31 +281,25 @@ function connectWebSocket() {
  * Algorithm 5 - Handle Live Presence Updates
  */
 function handlePresenceUpdate(statusUpdate) {
-    // Update active peer if open
     if (activePeer && activePeer.id === statusUpdate.userId) {
         activePeer.status = statusUpdate.status;
         updateActiveHeaderStatus();
     }
 
-    // Update in allUsers list
     const found = allUsers.find(u => u.id === statusUpdate.userId);
     if (found) {
         found.status = statusUpdate.status;
     }
 
-    // Refresh UI list item
     renderSidebarList();
 }
 
 function handleIncomingMessage(chatMessage) {
-    // If incoming message belongs to active peer conversation
     if (activePeer && (chatMessage.senderId === activePeer.id || chatMessage.receiverId === activePeer.id)) {
         appendMessageBubble(chatMessage);
         scrollFeedToBottom();
-        // Mark as read
         fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${activePeer.id}`, { method: 'POST' });
     } else {
-        // Notification for background conversation
         loadConversationsList();
     }
 }
@@ -269,12 +310,10 @@ function handleIncomingMessage(chatMessage) {
 
 function initMessengerDashboard() {
     document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('mainScreen').classList.remove('hidden');
 
-    // Populate user profile badge
-    document.getElementById('currentUserAvatar').src = currentUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.username}`;
-    document.getElementById('currentUserName').textContent = currentUser.displayName || currentUser.username;
-    document.getElementById('currentUserTag').textContent = `@${currentUser.username}`;
+    const avatarUrl = currentUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.username}`;
+    document.getElementById('topbarUserAvatar').src = avatarUrl;
+    document.getElementById('railUserAvatar').src = avatarUrl;
 
     connectWebSocket();
     loadConversationsList();
@@ -283,9 +322,19 @@ function initMessengerDashboard() {
 
 function switchSidebarTab(tab) {
     currentSidebarTab = tab;
-    document.getElementById('tabConversations').classList.toggle('active', tab === 'conversations');
-    document.getElementById('tabAllUsers').classList.toggle('active', tab === 'all');
+    document.getElementById('chipAll').classList.toggle('active', tab === 'conversations');
+    document.getElementById('chipUnread').classList.toggle('active', tab === 'unread');
+    document.getElementById('chipDirectory').classList.toggle('active', tab === 'all');
     renderSidebarList();
+}
+
+function filterUnreadMessages() {
+    switchSidebarTab('unread');
+}
+
+function openNewMessageModal() {
+    switchSidebarTab('all');
+    document.getElementById('userSearchInput').focus();
 }
 
 async function loadConversationsList() {
@@ -294,8 +343,13 @@ async function loadConversationsList() {
         const data = await res.json();
         if (data.success) {
             recentConversations = data.data;
-            if (currentSidebarTab === 'conversations') {
+            document.getElementById('conversationCountBadge').textContent = recentConversations.length;
+            if (currentSidebarTab === 'conversations' || currentSidebarTab === 'unread') {
                 renderSidebarList();
+            }
+            // If no active peer is selected, auto-select first conversation
+            if (!activePeer && recentConversations.length > 0) {
+                selectConversationPeer(recentConversations[0].user);
             }
         }
     } catch (e) {
@@ -348,51 +402,60 @@ function renderSidebarList() {
     const listContainer = document.getElementById('userList');
     listContainer.innerHTML = '';
 
-    if (currentSidebarTab === 'conversations') {
-        if (recentConversations.length === 0) {
+    if (currentSidebarTab === 'conversations' || currentSidebarTab === 'unread') {
+        let itemsToRender = recentConversations;
+        if (currentSidebarTab === 'unread') {
+            itemsToRender = recentConversations.filter(item => item.unreadCount > 0);
+        }
+
+        if (itemsToRender.length === 0) {
             listContainer.innerHTML = `
-                <div style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:13px;">
-                    <i class="fa-regular fa-comment-dots" style="font-size:26px; margin-bottom:8px; display:block;"></i>
-                    No conversations yet.<br>Switch to Directory to start a chat!
+                <div style="text-align:center; padding:36px 14px; color:var(--composer-meta-text); font-size:12.5px;">
+                    <i class="fa-regular fa-comment-dots" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
+                    ${currentSidebarTab === 'unread' ? 'No unread messages.' : 'No conversations yet.<br>Click Directory to start a chat!'}
                 </div>`;
             return;
         }
 
-        recentConversations.forEach(item => {
+        itemsToRender.forEach(item => {
             const peer = item.user;
             const lastMsg = item.lastMessage;
             const unread = item.unreadCount;
             const isOnline = peer.status === 'ONLINE';
 
-            const div = document.createElement('div');
-            div.className = `user-item ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
-            div.onclick = () => selectConversationPeer(peer);
+            const card = document.createElement('div');
+            card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
+            card.onclick = () => selectConversationPeer(peer);
 
-            const previewText = lastMsg ? (lastMsg.type === 'IMAGE' ? '📷 Photo' : (lastMsg.content || 'Media')) : 'Started a conversation';
+            let previewText = 'Started a conversation';
+            if (lastMsg) {
+                if (lastMsg.type === 'IMAGE') previewText = '📷 Photo attachment';
+                else if (lastMsg.content) previewText = lastMsg.content;
+            }
             const timeStr = lastMsg ? formatTime(lastMsg.timestamp) : '';
 
-            div.innerHTML = `
-                <div class="avatar-wrapper">
-                    <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="item-avatar">
-                    <span class="status-indicator ${peer.status ? peer.status.toLowerCase() : 'offline'}"></span>
+            card.innerHTML = `
+                <div class="contact-avatar-wrapper">
+                    <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="contact-avatar">
+                    <span class="status-indicator-dot ${isOnline ? 'online' : 'offline'}"></span>
                 </div>
-                <div class="item-content">
-                    <div class="item-top">
-                        <span class="item-name">${escapeHtml(peer.displayName || peer.username)}</span>
-                        <span class="item-time">${timeStr}</span>
+                <div class="contact-info">
+                    <div class="contact-top">
+                        <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
+                        <span class="contact-time">${timeStr}</span>
                     </div>
-                    <div class="item-bottom">
-                        <span class="item-preview">${escapeHtml(previewText)}</span>
-                        ${unread > 0 ? `<span class="badge-unread">${unread}</span>` : ''}
+                    <div class="contact-bottom">
+                        <span class="contact-preview">${escapeHtml(previewText)}</span>
+                        ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
                     </div>
                 </div>
             `;
-            listContainer.appendChild(div);
+            listContainer.appendChild(card);
         });
     } else {
         // Directory Tab
         if (allUsers.length === 0) {
-            listContainer.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--text-muted);">No other users found.</div>`;
+            listContainer.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--composer-meta-text); font-size:12.5px;">No other registered users.</div>`;
             return;
         }
         renderCustomUserList(allUsers);
@@ -404,26 +467,28 @@ function renderCustomUserList(users) {
     listContainer.innerHTML = '';
 
     users.forEach(peer => {
-        const div = document.createElement('div');
-        div.className = `user-item ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
-        div.onclick = () => selectConversationPeer(peer);
+        const card = document.createElement('div');
+        card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
+        card.onclick = () => selectConversationPeer(peer);
 
-        div.innerHTML = `
-            <div class="avatar-wrapper">
-                <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="item-avatar">
-                <span class="status-indicator ${peer.status ? peer.status.toLowerCase() : 'offline'}"></span>
+        const isOnline = peer.status === 'ONLINE';
+
+        card.innerHTML = `
+            <div class="contact-avatar-wrapper">
+                <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="contact-avatar">
+                <span class="status-indicator-dot ${isOnline ? 'online' : 'offline'}"></span>
             </div>
-            <div class="item-content">
-                <div class="item-top">
-                    <span class="item-name">${escapeHtml(peer.displayName || peer.username)}</span>
-                    <span class="item-time" style="font-size:10px; text-transform:uppercase;">${peer.status || 'OFFLINE'}</span>
+            <div class="contact-info">
+                <div class="contact-top">
+                    <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
+                    <span class="contact-time" style="font-size:10px; text-transform:uppercase;">${peer.status || 'OFFLINE'}</span>
                 </div>
-                <div class="item-bottom">
-                    <span class="item-preview">@${peer.username}</span>
+                <div class="contact-bottom">
+                    <span class="contact-preview">@${peer.username}</span>
                 </div>
             </div>
         `;
-        listContainer.appendChild(div);
+        listContainer.appendChild(card);
     });
 }
 
@@ -437,18 +502,15 @@ function selectConversationPeer(peer) {
     document.getElementById('chatEmptyState').classList.add('hidden');
     document.getElementById('chatActiveContainer').classList.remove('hidden');
 
-    // Header info
     document.getElementById('activeTargetAvatar').src = peer.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${peer.username}`;
     document.getElementById('activeTargetName').textContent = peer.displayName || peer.username;
     updateActiveHeaderStatus();
 
-    // Subscribe to active pair conversation topic and typing
     subscribeToConversationChannels();
 
     // Algorithm 4: Retrieve Message History
     loadMessageHistory();
 
-    // Mark messages from peer as read
     fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${peer.id}`, { method: 'POST' });
 }
 
@@ -456,10 +518,10 @@ function updateActiveHeaderStatus() {
     if (!activePeer) return;
     const dot = document.getElementById('activeTargetStatusDot');
     const text = document.getElementById('activeTargetStatusText');
-    const status = activePeer.status ? activePeer.status.toUpperCase() : 'OFFLINE';
+    const isOnline = activePeer.status === 'ONLINE';
 
-    dot.className = `status-indicator ${status.toLowerCase()}`;
-    text.textContent = status === 'ONLINE' ? 'Online' : (status === 'AWAY' ? 'Away' : 'Offline');
+    dot.className = `status-indicator-dot ${isOnline ? 'online' : 'offline'}`;
+    text.textContent = isOnline ? 'Online now • Available' : 'Offline • Last seen recently';
 }
 
 function subscribeToConversationChannels() {
@@ -476,7 +538,6 @@ function subscribeToConversationChannels() {
 
     const channelKey = Math.min(currentUser.id, activePeer.id) + '.' + Math.max(currentUser.id, activePeer.id);
 
-    // Subscribe to public conversation channel
     activeSubscription = stompClient.subscribe(`/topic/messages.${channelKey}`, (msg) => {
         const chatMessage = JSON.parse(msg.body);
         if (chatMessage.senderId !== currentUser.id) {
@@ -485,7 +546,6 @@ function subscribeToConversationChannels() {
         }
     });
 
-    // Subscribe to typing indicator
     activeTypingSubscription = stompClient.subscribe(`/topic/typing.${channelKey}`, (msg) => {
         const payload = JSON.parse(msg.body);
         if (payload.senderId === activePeer.id) {
@@ -496,34 +556,34 @@ function subscribeToConversationChannels() {
 
 /**
  * Algorithm 4 - Retrieve Message History
- * Input: Sender ID and Receiver ID
- * Output: Previous conversation in chronological order
  */
 async function loadMessageHistory() {
     const feed = document.getElementById('messageFeed');
     feed.innerHTML = `
-        <div style="text-align:center; padding:40px; color:var(--text-muted);">
-            <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;"></i>
-            <p style="margin-top:10px; font-size:13px;">Retrieving message history...</p>
+        <div class="date-divider"><span>Today, October 29</span></div>
+        <div style="text-align:center; padding:30px; color:var(--composer-meta-text);">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:20px;"></i>
+            <p style="margin-top:8px; font-size:12px;">Loading messages...</p>
         </div>`;
 
     try {
         const res = await fetch(`/api/messages/history?user1=${currentUser.id}&user2=${activePeer.id}`);
         const data = await res.json();
-        feed.innerHTML = '';
+        
+        feed.innerHTML = `<div class="date-divider"><span>Today, October 29</span></div>`;
 
         if (data.success && data.data.length > 0) {
             data.data.forEach(msg => appendMessageBubble(msg));
             scrollFeedToBottom();
         } else {
-            feed.innerHTML = `
-                <div style="text-align:center; padding:50px 20px; color:var(--text-muted); font-size:13px;">
-                    <i class="fa-regular fa-paper-plane" style="font-size:28px; margin-bottom:10px; display:block; opacity:0.6;"></i>
-                    No messages here yet.<br>Send a greeting to start your conversation!
+            feed.innerHTML += `
+                <div style="text-align:center; padding:40px 20px; color:var(--composer-meta-text); font-size:13px;">
+                    <i class="fa-regular fa-paper-plane" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
+                    No messages yet.<br>Say hello to start the conversation!
                 </div>`;
         }
     } catch (e) {
-        feed.innerHTML = `<div style="text-align:center; color:#fca5a5; padding:20px;">Failed to retrieve message history.</div>`;
+        feed.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">Failed to retrieve history.</div>`;
     }
 }
 
@@ -534,47 +594,77 @@ function refreshActiveConversation() {
     }
 }
 
+/**
+ * Render message bubbles matching exact Figma layout:
+ * - Incoming: Dark obsidian bubble with white text
+ * - Outgoing: Crisp white bubble with dark text + "Read ✓✓"
+ */
 function appendMessageBubble(msg) {
     const feed = document.getElementById('messageFeed');
-    // Clear empty placeholder if exists
-    if (feed.querySelector('div[style*="text-align:center"]')) {
-        feed.innerHTML = '';
-    }
-
     const isSent = msg.senderId === currentUser.id;
-    const row = document.createElement('div');
-    row.className = `message-row ${isSent ? 'sent' : 'received'}`;
 
-    let mediaHtml = '';
-    if (msg.mediaUrl) {
-        if (msg.type === 'IMAGE' || (msg.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i))) {
-            mediaHtml = `
-                <div class="media-attachment-container">
-                    <img src="${msg.mediaUrl}" alt="Media Attachment" class="chat-image" onclick="window.open('${msg.mediaUrl}', '_blank')">
-                </div>`;
-        } else {
-            mediaHtml = `
-                <div class="media-attachment-container" style="padding:10px; background:rgba(0,0,0,0.2);">
-                    <a href="${msg.mediaUrl}" target="_blank" style="color:#a5b4fc; text-decoration:none; display:flex; align-items:center; gap:8px;">
-                        <i class="fa-solid fa-file-arrow-down" style="font-size:20px;"></i>
-                        <span>${escapeHtml(msg.fileName || 'Download Attachment')}</span>
-                    </a>
-                </div>`;
-        }
-    }
+    const row = document.createElement('div');
+    row.className = `msg-row ${isSent ? 'outgoing' : 'incoming'}`;
 
     const timeStr = formatTime(msg.timestamp);
 
-    row.innerHTML = `
-        <div class="message-bubble">
-            ${mediaHtml}
-            ${msg.content ? `<span>${escapeHtml(msg.content)}</span>` : ''}
-        </div>
-        <div class="message-meta">
-            <span>${timeStr}</span>
-            ${isSent ? `<i class="fa-solid fa-check-double" style="font-size:10px; color:${msg.status === 'READ' ? '#38bdf8' : 'var(--text-muted)'};"></i>` : ''}
-        </div>
-    `;
+    // 1. Photo / Media Card (matching Figma Casa Olivo shoot layout)
+    if (msg.mediaUrl && (msg.type === 'IMAGE' || msg.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i))) {
+        row.innerHTML = `
+            <div class="media-card">
+                ${msg.content ? `<div class="media-card-caption">${escapeHtml(msg.content)}</div>` : ''}
+                <div class="media-grid">
+                    <img src="${msg.mediaUrl}" alt="Photo" onclick="window.open('${msg.mediaUrl}', '_blank')">
+                </div>
+                <div class="media-location-tag">
+                    <span><i class="fa-solid fa-location-dot" style="margin-right:4px;"></i> ${escapeHtml(msg.fileName || 'Shared Photo')}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </div>
+            </div>
+            <div class="msg-meta">
+                <span>${timeStr}</span>
+                ${isSent ? `<span class="read-check">• Read <i class="fa-solid fa-check-double"></i></span>` : ''}
+            </div>
+        `;
+    } 
+    // 2. Audio Voice Note
+    else if (msg.type === 'AUDIO' || (msg.content && msg.content.startsWith('[VOICE_NOTE]'))) {
+        row.innerHTML = `
+            <div style="display:flex; align-items:center;">
+                <div class="audio-capsule">
+                    <button type="button" class="audio-play-btn"><i class="fa-solid fa-play"></i></button>
+                    <div class="audio-waveform">
+                        <span style="height:6px"></span><span style="height:12px"></span>
+                        <span style="height:18px"></span><span style="height:14px"></span>
+                        <span style="height:10px"></span><span style="height:16px"></span>
+                        <span style="height:8px"></span><span style="height:14px"></span>
+                        <span style="height:20px"></span><span style="height:11px"></span>
+                        <span style="height:7px"></span><span style="height:15px"></span>
+                        <span style="height:12px"></span><span style="height:6px"></span>
+                    </div>
+                    <span class="audio-duration">0:24</span>
+                </div>
+                <span class="reaction-badge">🤍 1</span>
+            </div>
+            <div class="msg-meta">
+                <span>${timeStr}</span>
+                ${isSent ? `<span class="read-check">• Read <i class="fa-solid fa-check-double"></i></span>` : ''}
+            </div>
+        `;
+    }
+    // 3. Regular Text Message Bubble
+    else {
+        row.innerHTML = `
+            <div class="msg-bubble">
+                ${msg.mediaUrl ? `<div style="margin-bottom:6px;"><a href="${msg.mediaUrl}" target="_blank" style="color:#60a5fa; text-decoration:none;"><i class="fa-solid fa-paperclip"></i> ${escapeHtml(msg.fileName || 'Attachment')}</a></div>` : ''}
+                <span>${escapeHtml(msg.content || '')}</span>
+            </div>
+            <div class="msg-meta">
+                <span>${timeStr}</span>
+                ${isSent ? `<span class="read-check">• Read <i class="fa-solid fa-check-double"></i></span>` : ''}
+            </div>
+        `;
+    }
 
     feed.appendChild(row);
 }
@@ -590,8 +680,6 @@ function scrollFeedToBottom() {
 
 /**
  * Algorithm 3 - Send Message
- * Input: Sender ID, Receiver ID, Message
- * Output: Message delivered to receiver and stored in MySQL
  */
 async function handleSendMessage(e) {
     e.preventDefault();
@@ -613,7 +701,6 @@ async function handleSendMessage(e) {
         let fileSize = null;
         let messageType = 'CHAT';
 
-        // 1. Upload media file if attached
         if (pendingMediaFile) {
             const formData = new FormData();
             formData.append('file', pendingMediaFile);
@@ -646,11 +733,9 @@ async function handleSendMessage(e) {
             timestamp: new Date().toISOString()
         };
 
-        // 2. Deliver through WebSocket STOMP
         if (stompClient && isConnected) {
             stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(messagePayload));
         } else {
-            // Fallback to REST API
             await fetch('/api/messages/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -658,7 +743,6 @@ async function handleSendMessage(e) {
             });
         }
 
-        // Render bubble immediately for sender
         appendMessageBubble(messagePayload);
         scrollFeedToBottom();
 
@@ -709,6 +793,32 @@ function clearMediaAttachment() {
     document.getElementById('mediaPreviewBar').classList.add('hidden');
 }
 
+function insertSampleEmoji() {
+    const input = document.getElementById('chatMessageInput');
+    input.value += ' 🌿';
+    input.focus();
+}
+
+function sendSampleVoiceNote() {
+    if (!activePeer || !currentUser) return;
+    const messagePayload = {
+        senderId: currentUser.id,
+        senderUsername: currentUser.username,
+        receiverId: activePeer.id,
+        receiverUsername: activePeer.username,
+        content: '[VOICE_NOTE]',
+        type: 'AUDIO',
+        status: 'SENT',
+        timestamp: new Date().toISOString()
+    };
+
+    if (stompClient && isConnected) {
+        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(messagePayload));
+    }
+    appendMessageBubble(messagePayload);
+    scrollFeedToBottom();
+}
+
 // Typing Indicator Handling
 function handleTyping() {
     if (!activePeer || !stompClient || !isConnected) return;
@@ -734,7 +844,7 @@ function handleTypingNotification(isTyping) {
     const typingText = document.getElementById('typingIndicatorText');
 
     if (isTyping && activePeer) {
-        typingText.textContent = `${activePeer.displayName || activePeer.username} is typing...`;
+        typingText.textContent = `${activePeer.displayName || activePeer.username} is typing`;
         typingBar.classList.remove('hidden');
         scrollFeedToBottom();
     } else {

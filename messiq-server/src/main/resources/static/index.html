@@ -4,29 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>messiQ - Real-Time Messenger</title>
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Custom CSS -->
+    <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="theme-dark">
-    <!-- Main App Container -->
-    <div id="app" class="app-container">
+<body class="theme-light">
+    <!-- Main Shell -->
+    <div id="app" class="app-shell">
 
-        <!-- AUTH SCREEN -->
-        <div id="authScreen" class="auth-screen">
+        <!-- TOP APPLICATION BAR -->
+        <header class="app-topbar">
+            <div class="topbar-brand">
+                <div class="brand-badge-icon">
+                    <i class="fa-solid fa-comment-dots"></i>
+                </div>
+                <div class="brand-text-group">
+                    <span class="brand-title">messi<strong>Q</strong></span>
+                    <span class="brand-tagline">A little closer, wherever</span>
+                </div>
+            </div>
+
+            <div class="topbar-right">
+                <div class="system-status-chip">
+                    <span id="topWsDot" class="status-indicator-dot online"></span>
+                    <span id="topWsText">All systems connected</span>
+                </div>
+                <div class="topbar-date" id="topbarDate">Thu, October 29</div>
+                <div class="topbar-avatar" onclick="handleLogout()" title="Click to Sign Out">
+                    <img id="topbarUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="User">
+                </div>
+            </div>
+        </header>
+
+        <!-- AUTH SCREEN MODAL OVERLAY -->
+        <div id="authScreen" class="auth-overlay hidden">
             <div class="auth-card">
                 <div class="auth-brand">
-                    <div class="brand-logo">
+                    <div class="brand-badge-icon lg">
                         <i class="fa-solid fa-bolt"></i>
                     </div>
-                    <h1 class="brand-title">messi<span>Q</span></h1>
-                    <p class="brand-subtitle">Real-Time Messenger Application</p>
-                    <div class="brand-meta">Graphic Era Hill University • BCA Group 24</div>
+                    <h2>messi<span>Q</span></h2>
+                    <p>Real-Time Messenger Application</p>
+                    <div class="auth-academic">Graphic Era Hill University • BCA Group 24</div>
                 </div>
 
                 <!-- Auth Navigation Tabs -->
@@ -42,7 +66,7 @@
                 <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
                     <div class="form-group">
                         <label for="loginIdentifier"><i class="fa-regular fa-user"></i> Username or Email</label>
-                        <input type="text" id="loginIdentifier" placeholder="e.g. hridyansh or email" required autocomplete="username">
+                        <input type="text" id="loginIdentifier" placeholder="e.g. hridyansh or maya" required autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label>
@@ -64,15 +88,15 @@
                 <form id="registerForm" class="auth-form hidden" onsubmit="handleRegister(event)">
                     <div class="form-group">
                         <label for="regUsername"><i class="fa-regular fa-user"></i> Username</label>
-                        <input type="text" id="regUsername" placeholder="e.g. alex24" required minlength="3">
+                        <input type="text" id="regUsername" placeholder="e.g. maya" required minlength="3">
                     </div>
                     <div class="form-group">
                         <label for="regDisplayName"><i class="fa-regular fa-id-badge"></i> Full Name</label>
-                        <input type="text" id="regDisplayName" placeholder="e.g. Alex Hunter" required>
+                        <input type="text" id="regDisplayName" placeholder="e.g. Maya Chen" required>
                     </div>
                     <div class="form-group">
                         <label for="regEmail"><i class="fa-regular fa-envelope"></i> Email Address</label>
-                        <input type="email" id="regEmail" placeholder="alex@gehu.ac.in" required>
+                        <input type="email" id="regEmail" placeholder="maya@gehu.ac.in" required>
                     </div>
                     <div class="form-group">
                         <label for="regPassword"><i class="fa-solid fa-lock"></i> Password</label>
@@ -86,115 +110,157 @@
             </div>
         </div>
 
-        <!-- MESSENGER MAIN DASHBOARD -->
-        <div id="mainScreen" class="main-screen hidden">
-            <!-- Left Sidebar -->
-            <aside class="sidebar">
-                <!-- User Profile Header -->
-                <div class="sidebar-header">
-                    <div class="user-profile-badge">
-                        <div class="avatar-wrapper">
-                            <img id="currentUserAvatar" src="" alt="User Avatar" class="user-avatar">
-                            <span id="currentUserOnlineDot" class="status-indicator online"></span>
-                        </div>
-                        <div class="user-info">
-                            <h3 id="currentUserName" class="user-name">Loading...</h3>
-                            <span id="currentUserTag" class="user-handle">@username</span>
-                        </div>
+        <!-- MAIN MESSENGER WORKSPACE -->
+        <div id="mainScreen" class="main-workspace">
+
+            <!-- 1. SLIM LEFT ICON NAVIGATION RAIL -->
+            <nav class="nav-rail">
+                <div class="rail-top">
+                    <button class="rail-btn" title="Dashboard / Apps"><i class="fa-solid fa-grip"></i></button>
+                    <button class="rail-btn active" title="Messages"><i class="fa-solid fa-comment"></i></button>
+                    <button class="rail-btn" title="Contacts" onclick="switchSidebarTab('all')"><i class="fa-solid fa-user-group"></i></button>
+                    <button class="rail-btn" title="Bookmarks"><i class="fa-regular fa-bookmark"></i></button>
+                    <button class="rail-btn" title="Notifications"><i class="fa-regular fa-bell"></i></button>
+                </div>
+
+                <div class="rail-bottom">
+                    <!-- Light / Dark Mode Toggle Button -->
+                    <button id="themeToggleBtn" class="rail-btn theme-toggle" title="Toggle Light / Dark Mode" onclick="toggleTheme()">
+                        <i id="themeIcon" class="fa-solid fa-moon"></i>
+                    </button>
+                    <button class="rail-btn" title="Help & Docs"><i class="fa-regular fa-circle-question"></i></button>
+                    <button class="rail-btn" title="Settings"><i class="fa-solid fa-sliders"></i></button>
+                    
+                    <div class="rail-user-avatar" onclick="handleLogout()" title="Sign Out">
+                        <img id="railUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="User Avatar">
+                        <span id="railUserStatusDot" class="status-indicator-dot online"></span>
                     </div>
-                    <div class="header-actions">
-                        <button class="icon-btn" title="Sign Out" onclick="handleLogout()">
-                            <i class="fa-solid fa-right-from-bracket"></i>
+                </div>
+            </nav>
+
+            <!-- 2. MESSAGES & CONTACTS DIRECTORY COLUMN -->
+            <aside class="sidebar-messages">
+                <div class="messages-header">
+                    <div class="title-row">
+                        <div class="messages-heading">
+                            <h2>Messages</h2>
+                            <span id="conversationCountBadge" class="count-pill">5</span>
+                        </div>
+                        <button class="icon-action-btn" title="Compose New Message" onclick="openNewMessageModal()">
+                            <i class="fa-regular fa-pen-to-square"></i>
                         </button>
                     </div>
-                </div>
 
-                <!-- Search Users Bar -->
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="text" id="userSearchInput" placeholder="Search conversations or users..." oninput="handleSearch(this.value)">
-                    <button id="clearSearchBtn" class="clear-btn hidden" onclick="clearSearch()">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
+                    <!-- Search Input Box -->
+                    <div class="search-input-pill">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="userSearchInput" placeholder="Search messages..." oninput="handleSearch(this.value)">
+                        <span class="cmd-k-badge">⌘ K</span>
+                        <button id="clearSearchBtn" class="clear-search-btn hidden" onclick="clearSearch()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
 
-                <!-- Navigation Tabs: All Users vs Recent Chats -->
-                <div class="sidebar-tabs">
-                    <button id="tabConversations" class="subtab-btn active" onclick="switchSidebarTab('conversations')">
-                        <i class="fa-regular fa-message"></i> Chats
-                    </button>
-                    <button id="tabAllUsers" class="subtab-btn" onclick="switchSidebarTab('all')">
-                        <i class="fa-solid fa-users"></i> Directory
-                    </button>
-                </div>
+                    <!-- Filter Chips / Tabs -->
+                    <div class="filter-chips">
+                        <button id="chipAll" class="filter-chip active" onclick="switchSidebarTab('conversations')">All messages</button>
+                        <button id="chipUnread" class="filter-chip" onclick="filterUnreadMessages()">Unread</button>
+                        <button id="chipDirectory" class="filter-chip" onclick="switchSidebarTab('all')">Directory</button>
+                    </div>
 
-                <!-- Users / Conversations List -->
-                <div class="user-list-container">
-                    <div id="userList" class="user-list">
-                        <!-- Populated dynamically -->
+                    <!-- Section Header -->
+                    <div class="section-label-row">
+                        <span class="section-label">RECENT</span>
+                        <button class="filter-icon-btn" title="Sort & Filter"><i class="fa-solid fa-arrow-down-short-wide"></i></button>
                     </div>
                 </div>
 
-                <!-- Footer Status -->
-                <div class="sidebar-footer">
-                    <div class="connection-status">
-                        <span id="wsStatusDot" class="status-dot connecting"></span>
-                        <span id="wsStatusText">Connecting to WebSocket...</span>
+                <!-- Scrollable Conversation / User List -->
+                <div class="user-list-wrapper">
+                    <div id="userList" class="user-list">
+                        <!-- Dynamically populated contacts -->
+                    </div>
+                </div>
+
+                <!-- Sidebar Footer Status -->
+                <div class="sidebar-footer-sync">
+                    <div class="sync-indicator">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Everything is sync. You're right on time.</span>
                     </div>
                 </div>
             </aside>
 
-            <!-- Main Chat Area -->
-            <main class="chat-area">
+            <!-- 3. MAIN CHAT AREA (Celadon / Warm Theme Canvas) -->
+            <main class="chat-canvas">
+                
                 <!-- Welcome / Empty State Screen -->
                 <div id="chatEmptyState" class="chat-empty-state">
-                    <div class="empty-content">
-                        <div class="empty-icon-pulse">
+                    <div class="empty-state-card">
+                        <div class="empty-icon-circle">
                             <i class="fa-solid fa-comments"></i>
                         </div>
-                        <h2>Welcome to messiQ</h2>
-                        <p>Select a contact from the sidebar or search registered users to start instant real-time messaging with live presence and media sharing.</p>
-                        <div class="empty-specs-badge">
-                            <span><i class="fa-solid fa-shield-halved"></i> WebSocket Real-Time</span>
-                            <span><i class="fa-solid fa-database"></i> MySQL Persistence</span>
-                            <span><i class="fa-solid fa-photo-film"></i> Media Uploads</span>
+                        <h2>messiQ Real-Time Messenger</h2>
+                        <p>Select any conversation from the list to start messaging with live WebSocket presence, typing indicators, and instant photo sharing.</p>
+                        <div class="empty-feature-pills">
+                            <span><i class="fa-solid fa-bolt"></i> Real-time WebSocket</span>
+                            <span><i class="fa-solid fa-image"></i> Photo Sharing</span>
+                            <span><i class="fa-solid fa-circle-half-stroke"></i> Light & Dark Mode</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Active Conversation Container -->
+                <!-- Active Chat Container -->
                 <div id="chatActiveContainer" class="chat-active-container hidden">
-                    <!-- Chat Top Bar -->
+                    
+                    <!-- Chat Header -->
                     <header class="chat-header">
-                        <div class="chat-target-info">
-                            <div class="avatar-wrapper">
-                                <img id="activeTargetAvatar" src="" alt="Target Avatar" class="target-avatar">
-                                <span id="activeTargetStatusDot" class="status-indicator offline"></span>
+                        <div class="chat-peer-profile">
+                            <div class="avatar-container">
+                                <img id="activeTargetAvatar" src="" alt="Target Avatar" class="peer-avatar">
+                                <span id="activeTargetStatusDot" class="status-indicator-dot online"></span>
                             </div>
-                            <div>
-                                <h2 id="activeTargetName" class="target-name">Target User</h2>
-                                <span id="activeTargetStatusText" class="target-status">Offline</span>
+                            <div class="peer-details">
+                                <h3 id="activeTargetName" class="peer-name">Maya Chen</h3>
+                                <p id="activeTargetStatusText" class="peer-status">Online now • Photographer, good friend</p>
                             </div>
                         </div>
+
+                        <!-- Top Action Buttons -->
                         <div class="chat-header-actions">
-                            <button class="icon-btn" title="Refresh History" onclick="refreshActiveConversation()">
-                                <i class="fa-solid fa-arrows-rotate"></i>
-                            </button>
+                            <button class="header-action-btn" title="Voice Call"><i class="fa-solid fa-phone"></i></button>
+                            <button class="header-action-btn" title="Video Call"><i class="fa-solid fa-video"></i></button>
+                            <button class="header-action-btn" title="Search in Chat"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            <button class="header-action-btn" title="Details / Toggle Panel" onclick="refreshActiveConversation()"><i class="fa-solid fa-table-columns"></i></button>
                         </div>
                     </header>
 
-                    <!-- Message Feed -->
-                    <div id="messageFeed" class="message-feed">
-                        <!-- Dynamic chat bubbles loaded here -->
+                    <!-- Pinned Story / Announcement Banner -->
+                    <div class="pinned-banner">
+                        <div class="pinned-content">
+                            <i class="fa-solid fa-thumbtack pinned-pin"></i>
+                            <span class="pinned-label">Pinned</span>
+                            <span class="pinned-text">A slower kind of story — our November moodboard</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right pinned-arrow"></i>
                     </div>
 
-                    <!-- Typing Indicator Area -->
-                    <div id="typingIndicatorBar" class="typing-bar hidden">
-                        <div class="typing-bubble">
+                    <!-- Chat Scroll Feed -->
+                    <div id="messageFeed" class="message-feed">
+                        <!-- Date divider -->
+                        <div class="date-divider">
+                            <span>Today, October 29</span>
+                        </div>
+                        <!-- Dynamic chat messages inserted here -->
+                    </div>
+
+                    <!-- Typing Indicator -->
+                    <div id="typingIndicatorBar" class="typing-pill-container hidden">
+                        <div class="typing-pill">
                             <div class="typing-dots">
                                 <span></span><span></span><span></span>
                             </div>
-                            <span id="typingIndicatorText">typing...</span>
+                            <span id="typingIndicatorText">Maya is typing</span>
                         </div>
                     </div>
 
@@ -203,7 +269,7 @@
                         <div class="preview-card">
                             <img id="mediaPreviewImg" src="" alt="Preview">
                             <div class="preview-details">
-                                <span id="previewFileName">filename.jpg</span>
+                                <span id="previewFileName">photo.jpg</span>
                                 <span id="previewFileSize">120 KB</span>
                             </div>
                             <button type="button" class="preview-remove-btn" onclick="clearMediaAttachment()">
@@ -212,29 +278,47 @@
                         </div>
                     </div>
 
-                    <!-- Chat Input Bar -->
-                    <footer class="chat-footer">
-                        <form id="chatForm" class="chat-form" onsubmit="handleSendMessage(event)">
+                    <!-- Floating Rounded Input Composer -->
+                    <footer class="chat-composer-wrapper">
+                        <form id="chatForm" class="composer-card" onsubmit="handleSendMessage(event)">
                             <!-- Hidden File Input -->
                             <input type="file" id="mediaFileInput" accept="image/*,.pdf,.doc,.docx" class="hidden" onchange="handleFileSelected(event)">
                             
-                            <button type="button" class="attachment-btn" title="Attach Photo or Document" onclick="triggerFileInput()">
-                                <i class="fa-solid fa-paperclip"></i>
+                            <!-- Attach Button (+) -->
+                            <button type="button" class="composer-icon-btn plus-btn" title="Add Photo or File" onclick="triggerFileInput()">
+                                <i class="fa-solid fa-plus"></i>
                             </button>
 
-                            <input type="text" id="chatMessageInput" placeholder="Write a message..." autocomplete="off" oninput="handleTyping()">
+                            <!-- Message Text Input -->
+                            <input type="text" id="chatMessageInput" placeholder="Write a little something..." autocomplete="off" oninput="handleTyping()">
 
-                            <button type="submit" id="sendBtn" class="send-btn" title="Send (Enter)">
+                            <!-- Emoji & Mic Icons -->
+                            <button type="button" class="composer-icon-btn" title="Add Emoji" onclick="insertSampleEmoji()">
+                                <i class="fa-regular fa-face-smile"></i>
+                            </button>
+                            <button type="button" class="composer-icon-btn" title="Voice Message" onclick="sendSampleVoiceNote()">
+                                <i class="fa-solid fa-microphone"></i>
+                            </button>
+
+                            <!-- Circular Dark Send Button -->
+                            <button type="submit" id="sendBtn" class="composer-send-btn" title="Send (Enter)">
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
                         </form>
+
+                        <!-- Subtle Bottom Notice -->
+                        <div class="composer-meta-row">
+                            <span class="enc-notice"><i class="fa-solid fa-lock"></i> End-to-end encrypted • You and contact only</span>
+                            <span class="shortcut-notice">Enter to send • Shift + Enter for new line</span>
+                        </div>
                     </footer>
+
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- SockJS and STOMP Client CDN -->
+    <!-- SockJS and STOMP Client -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <!-- App Logic -->
