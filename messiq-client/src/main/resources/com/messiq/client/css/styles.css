@@ -1,0 +1,382 @@
+/* =========================================================
+   messiQ JavaFX Desktop Theme
+   ========================================================= */
+
+.root {
+    -fx-font-family: 'Segoe UI', 'Ubuntu', 'Helvetica Neue', sans-serif;
+    -fx-background-color: #0a0d14;
+}
+
+/* =========================================================
+   AUTH SCREEN STYLING
+   ========================================================= */
+.auth-root {
+    -fx-background-color: linear-gradient(to bottom, #111827, #0a0d14);
+}
+
+.auth-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #6366f1;
+}
+
+.auth-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: #94a3b8;
+}
+
+.auth-meta {
+    -fx-font-size: 10px;
+    -fx-text-fill: #64748b;
+    -fx-font-weight: bold;
+}
+
+.auth-tabs-container {
+    -fx-background-color: #151b2b;
+    -fx-background-radius: 8px;
+    -fx-padding: 3px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 8px;
+}
+
+.tab-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #94a3b8;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 6px;
+    -fx-cursor: hand;
+    -fx-padding: 8px;
+}
+
+.tab-btn:hover {
+    -fx-text-fill: #f8fafc;
+}
+
+.active-tab {
+    -fx-background-color: #6366f1;
+    -fx-text-fill: #ffffff;
+}
+
+.field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #94a3b8;
+}
+
+.field-label-sm {
+    -fx-font-size: 11px;
+    -fx-text-fill: #64748b;
+}
+
+.input-field {
+    -fx-background-color: #151b2b;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #475569;
+    -fx-background-radius: 8px;
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+    -fx-border-radius: 8px;
+    -fx-padding: 10px 12px;
+    -fx-font-size: 13px;
+}
+
+.input-field:focused {
+    -fx-border-color: #6366f1;
+    -fx-background-color: #182033;
+}
+
+.demo-chip {
+    -fx-background-color: rgba(99, 102, 241, 0.15);
+    -fx-border-color: rgba(99, 102, 241, 0.3);
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+    -fx-text-fill: #a5b4fc;
+    -fx-font-size: 10px;
+    -fx-padding: 3px 8px;
+    -fx-cursor: hand;
+}
+
+.demo-chip:hover {
+    -fx-background-color: #6366f1;
+    -fx-text-fill: white;
+}
+
+.btn-primary {
+    -fx-background-color: linear-gradient(to right, #6366f1, #8b5cf6);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-background-radius: 8px;
+    -fx-padding: 11px;
+    -fx-cursor: hand;
+}
+
+.btn-primary:hover {
+    -fx-background-color: linear-gradient(to right, #4f46e5, #7c3aed);
+}
+
+/* =========================================================
+   MAIN CHAT DASHBOARD STYLING
+   ========================================================= */
+.main-root {
+    -fx-background-color: #0a0d14;
+}
+
+.sidebar-container {
+    -fx-background-color: #101522;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 0 1 0 0;
+}
+
+.sidebar-header {
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 0 0 1 0;
+}
+
+.avatar-circle {
+    -fx-fill: #252e46;
+    -fx-stroke: rgba(255, 255, 255, 0.1);
+}
+
+.profile-name {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.profile-handle {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11px;
+}
+
+.logout-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 16px;
+    -fx-cursor: hand;
+}
+
+.logout-btn:hover {
+    -fx-text-fill: #ef4444;
+}
+
+.search-field {
+    -fx-background-color: #151b2b;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #475569;
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 20px;
+    -fx-padding: 8px 14px;
+    -fx-font-size: 12px;
+}
+
+.search-field:focused {
+    -fx-border-color: #6366f1;
+}
+
+.user-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.user-scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.user-card {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10px;
+    -fx-cursor: hand;
+}
+
+.user-card:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+}
+
+.active-card {
+    -fx-background-color: rgba(99, 102, 241, 0.18) !important;
+    -fx-border-color: rgba(99, 102, 241, 0.35);
+    -fx-border-radius: 10px;
+}
+
+.card-name {
+    -fx-text-fill: #f8fafc;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+.card-handle {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 11px;
+}
+
+.sidebar-footer {
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1 0 0 0;
+}
+
+.status-footer-text {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11px;
+}
+
+/* Chat Center Area */
+.chat-center-stack {
+    -fx-background-color: #0a0d14;
+}
+
+.empty-icon {
+    -fx-font-size: 48px;
+    -fx-text-fill: #6366f1;
+}
+
+.empty-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8fafc;
+}
+
+.empty-desc {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
+}
+
+.badge-pill {
+    -fx-background-color: #151b2b;
+    -fx-text-fill: #a5b4fc;
+    -fx-padding: 4px 10px;
+    -fx-background-radius: 14px;
+    -fx-font-size: 11px;
+    -fx-border-color: rgba(99, 102, 241, 0.2);
+    -fx-border-radius: 14px;
+}
+
+.chat-top-header {
+    -fx-background-color: #101522;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 0 0 1 0;
+}
+
+.active-header-name {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.active-header-status {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 11px;
+}
+
+.message-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.message-scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.bubble-sent {
+    -fx-background-color: linear-gradient(to right, #6366f1, #4f46e5);
+    -fx-background-radius: 16px 16px 2px 16px;
+}
+
+.bubble-received {
+    -fx-background-color: #1e2538;
+    -fx-background-radius: 16px 16px 16px 2px;
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-radius: 16px 16px 16px 2px;
+}
+
+.bubble-text-sent {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px;
+}
+
+.bubble-text-received {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 13px;
+}
+
+.message-time {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 10px;
+}
+
+.attachment-bar {
+    -fx-background-color: #101522;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1 0 0 0;
+}
+
+.attached-name {
+    -fx-text-fill: #a5b4fc;
+    -fx-font-size: 12px;
+}
+
+.chip-remove-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #ef4444;
+    -fx-cursor: hand;
+}
+
+.chat-footer-bar {
+    -fx-background-color: #101522;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-width: 1 0 0 0;
+}
+
+.btn-icon {
+    -fx-background-color: #151b2b;
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 14px;
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 20px;
+    -fx-padding: 8px 12px;
+    -fx-cursor: hand;
+}
+
+.btn-icon:hover {
+    -fx-text-fill: #6366f1;
+    -fx-border-color: #6366f1;
+}
+
+.chat-input-field {
+    -fx-background-color: #151b2b;
+    -fx-text-fill: #f8fafc;
+    -fx-prompt-text-fill: #475569;
+    -fx-background-radius: 20px;
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 20px;
+    -fx-padding: 10px 16px;
+    -fx-font-size: 13px;
+}
+
+.chat-input-field:focused {
+    -fx-border-color: #6366f1;
+}
+
+.btn-primary-send {
+    -fx-background-color: linear-gradient(to right, #6366f1, #8b5cf6);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20px;
+    -fx-padding: 10px 18px;
+    -fx-cursor: hand;
+}
+
+.btn-primary-send:hover {
+    -fx-background-color: linear-gradient(to right, #4f46e5, #7c3aed);
+}
+
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 6px;
+}
+.scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-background-radius: 3px;
+}
