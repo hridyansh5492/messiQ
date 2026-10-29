@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>messiQ - Real-Time Messenger</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="theme-dark">
+    <!-- Main App Container -->
+    <div id="app" class="app-container">
+
+        <!-- AUTH SCREEN -->
+        <div id="authScreen" class="auth-screen">
+            <div class="auth-card">
+                <div class="auth-brand">
+                    <div class="brand-logo">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h1 class="brand-title">messi<span>Q</span></h1>
+                    <p class="brand-subtitle">Real-Time Messenger Application</p>
+                    <div class="brand-meta">Graphic Era Hill University • BCA Group 24</div>
+                </div>
+
+                <!-- Auth Navigation Tabs -->
+                <div class="auth-tabs">
+                    <button id="tabLogin" class="tab-btn active" onclick="switchAuthTab('login')">Sign In</button>
+                    <button id="tabRegister" class="tab-btn" onclick="switchAuthTab('register')">Register</button>
+                </div>
+
+                <!-- Alert Message Banner -->
+                <div id="authAlert" class="auth-alert hidden"></div>
+
+                <!-- Login Form -->
+                <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="loginIdentifier"><i class="fa-regular fa-user"></i> Username or Email</label>
+                        <input type="text" id="loginIdentifier" placeholder="e.g. hridyansh or email" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label>
+                        <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+                    <div class="demo-hints">
+                        <span>Demo Accounts:</span>
+                        <button type="button" class="chip" onclick="fillDemo('hridyansh', 'messiq123')">hridyansh</button>
+                        <button type="button" class="chip" onclick="fillDemo('megha', 'messiq123')">megha</button>
+                        <button type="button" class="chip" onclick="fillDemo('janmejay', 'messiq123')">janmejay</button>
+                    </div>
+                    <button type="submit" id="loginBtn" class="btn btn-primary btn-block">
+                        <span>Sign In</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </form>
+
+                <!-- Registration Form -->
+                <form id="registerForm" class="auth-form hidden" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="regUsername"><i class="fa-regular fa-user"></i> Username</label>
+                        <input type="text" id="regUsername" placeholder="e.g. alex24" required minlength="3">
+                    </div>
+                    <div class="form-group">
+                        <label for="regDisplayName"><i class="fa-regular fa-id-badge"></i> Full Name</label>
+                        <input type="text" id="regDisplayName" placeholder="e.g. Alex Hunter" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regEmail"><i class="fa-regular fa-envelope"></i> Email Address</label>
+                        <input type="email" id="regEmail" placeholder="alex@gehu.ac.in" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regPassword"><i class="fa-solid fa-lock"></i> Password</label>
+                        <input type="password" id="regPassword" placeholder="Minimum 6 characters" required minlength="6">
+                    </div>
+                    <button type="submit" id="registerBtn" class="btn btn-primary btn-block">
+                        <span>Create Account</span>
+                        <i class="fa-solid fa-user-plus"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MESSENGER MAIN DASHBOARD -->
+        <div id="mainScreen" class="main-screen hidden">
+            <!-- Left Sidebar -->
+            <aside class="sidebar">
+                <!-- User Profile Header -->
+                <div class="sidebar-header">
+                    <div class="user-profile-badge">
+                        <div class="avatar-wrapper">
+                            <img id="currentUserAvatar" src="" alt="User Avatar" class="user-avatar">
+                            <span id="currentUserOnlineDot" class="status-indicator online"></span>
+                        </div>
+                        <div class="user-info">
+                            <h3 id="currentUserName" class="user-name">Loading...</h3>
+                            <span id="currentUserTag" class="user-handle">@username</span>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="icon-btn" title="Sign Out" onclick="handleLogout()">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Users Bar -->
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="userSearchInput" placeholder="Search conversations or users..." oninput="handleSearch(this.value)">
+                    <button id="clearSearchBtn" class="clear-btn hidden" onclick="clearSearch()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Navigation Tabs: All Users vs Recent Chats -->
+                <div class="sidebar-tabs">
+                    <button id="tabConversations" class="subtab-btn active" onclick="switchSidebarTab('conversations')">
+                        <i class="fa-regular fa-message"></i> Chats
+                    </button>
+                    <button id="tabAllUsers" class="subtab-btn" onclick="switchSidebarTab('all')">
+                        <i class="fa-solid fa-users"></i> Directory
+                    </button>
+                </div>
+
+                <!-- Users / Conversations List -->
+                <div class="user-list-container">
+                    <div id="userList" class="user-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Footer Status -->
+                <div class="sidebar-footer">
+                    <div class="connection-status">
+                        <span id="wsStatusDot" class="status-dot connecting"></span>
+                        <span id="wsStatusText">Connecting to WebSocket...</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Chat Area -->
+            <main class="chat-area">
+                <!-- Welcome / Empty State Screen -->
+                <div id="chatEmptyState" class="chat-empty-state">
+                    <div class="empty-content">
+                        <div class="empty-icon-pulse">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+                        <h2>Welcome to messiQ</h2>
+                        <p>Select a contact from the sidebar or search registered users to start instant real-time messaging with live presence and media sharing.</p>
+                        <div class="empty-specs-badge">
+                            <span><i class="fa-solid fa-shield-halved"></i> WebSocket Real-Time</span>
+                            <span><i class="fa-solid fa-database"></i> MySQL Persistence</span>
+                            <span><i class="fa-solid fa-photo-film"></i> Media Uploads</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Conversation Container -->
+                <div id="chatActiveContainer" class="chat-active-container hidden">
+                    <!-- Chat Top Bar -->
+                    <header class="chat-header">
+                        <div class="chat-target-info">
+                            <div class="avatar-wrapper">
+                                <img id="activeTargetAvatar" src="" alt="Target Avatar" class="target-avatar">
+                                <span id="activeTargetStatusDot" class="status-indicator offline"></span>
+                            </div>
+                            <div>
+                                <h2 id="activeTargetName" class="target-name">Target User</h2>
+                                <span id="activeTargetStatusText" class="target-status">Offline</span>
+                            </div>
+                        </div>
+                        <div class="chat-header-actions">
+                            <button class="icon-btn" title="Refresh History" onclick="refreshActiveConversation()">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </button>
+                        </div>
+                    </header>
+
+                    <!-- Message Feed -->
+                    <div id="messageFeed" class="message-feed">
+                        <!-- Dynamic chat bubbles loaded here -->
+                    </div>
+
+                    <!-- Typing Indicator Area -->
+                    <div id="typingIndicatorBar" class="typing-bar hidden">
+                        <div class="typing-bubble">
+                            <div class="typing-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <span id="typingIndicatorText">typing...</span>
+                        </div>
+                    </div>
+
+                    <!-- Media Upload Preview Bar -->
+                    <div id="mediaPreviewBar" class="media-preview-bar hidden">
+                        <div class="preview-card">
+                            <img id="mediaPreviewImg" src="" alt="Preview">
+                            <div class="preview-details">
+                                <span id="previewFileName">filename.jpg</span>
+                                <span id="previewFileSize">120 KB</span>
+                            </div>
+                            <button type="button" class="preview-remove-btn" onclick="clearMediaAttachment()">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input Bar -->
+                    <footer class="chat-footer">
+                        <form id="chatForm" class="chat-form" onsubmit="handleSendMessage(event)">
+                            <!-- Hidden File Input -->
+                            <input type="file" id="mediaFileInput" accept="image/*,.pdf,.doc,.docx" class="hidden" onchange="handleFileSelected(event)">
+                            
+                            <button type="button" class="attachment-btn" title="Attach Photo or Document" onclick="triggerFileInput()">
+                                <i class="fa-solid fa-paperclip"></i>
+                            </button>
+
+                            <input type="text" id="chatMessageInput" placeholder="Write a message..." autocomplete="off" oninput="handleTyping()">
+
+                            <button type="submit" id="sendBtn" class="send-btn" title="Send (Enter)">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </footer>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- SockJS and STOMP Client CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <!-- App Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
