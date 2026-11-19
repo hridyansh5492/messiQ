@@ -167,6 +167,7 @@ body {
 .app-shell {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2741,11 +2742,29 @@ body.theme-dark .home-nav {
     color: var(--online-green);
 }
 
-@media (max-width: 768px) {
-    .home-nav-links { display: none; }
-    .hero-title { font-size: 34px; }
-    .mockup-body { height: 280px; }
-    .mockup-sidebar { display: none; }
+/* =========================================================
+   MOBILE BACK BUTTON (Hidden on Desktop, Visible on Mobile)
+   ========================================================= */
+.mobile-back-btn {
+    display: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--contact-name);
+    font-size: 16px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-right: 4px;
+    transition: var(--transition);
+}
+
+.mobile-back-btn:active {
+    background-color: var(--bg-search);
+    transform: scale(0.92);
 }
 
 /* Empty State Actions & Contact Badges */
@@ -4315,4 +4334,653 @@ body.font-lg .msg-bubble span { font-size: 15.5px; }
 
 .voice-rec-btn.send:hover {
     transform: scale(1.05);
+}
+
+
+/* =========================================================
+   COMPREHENSIVE MOBILE RESPONSIVE ENGINE (messiQ Mobile Web)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* Touch & Container Foundations */
+    html, body {
+        width: 100%;
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-shell {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    /* TOP APPLICATION BAR (Mobile Compact) */
+    .app-topbar {
+        height: 48px;
+        min-height: 48px;
+        padding: 0 14px;
+    }
+
+    .topbar-brand .brand-tagline,
+    .system-status-chip,
+    .topbar-date {
+        display: none !important;
+    }
+
+    .topbar-avatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    /* MAIN 3-COLUMN WORKSPACE -> MOBILE 1-COLUMN ADAPTIVE FLOW */
+    .main-workspace {
+        flex-direction: column;
+        width: 100%;
+        height: calc(100% - 48px);
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 1. BOTTOM NAVIGATION BAR (Transformed from Left Rail) */
+    .nav-rail {
+        order: 2;
+        width: 100%;
+        min-width: 100%;
+        height: 56px;
+        min-height: 56px;
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+        padding: 0 10px;
+        border-right: none;
+        border-top: 1px solid var(--rail-border);
+        background-color: var(--bg-rail);
+        z-index: 40;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .rail-top, 
+    .rail-bottom {
+        flex-direction: row;
+        gap: 8px;
+        align-items: center;
+        width: auto;
+    }
+
+    .rail-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+        border-radius: var(--radius-pill);
+    }
+
+    .rail-user-avatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    /* 2. SIDEBAR MESSAGES & CONTACTS DIRECTORY */
+    .sidebar-messages {
+        order: 1;
+        width: 100%;
+        min-width: 0;
+        flex: 1;
+        height: calc(100% - 56px);
+        border-right: none;
+    }
+
+    .messages-header {
+        padding: 12px 14px 6px 14px;
+        gap: 8px;
+    }
+
+    .messages-heading h2 {
+        font-size: 19px;
+    }
+
+    .search-input-pill {
+        height: 38px;
+        padding: 0 12px;
+    }
+
+    .cmd-k-badge {
+        display: none !important;
+    }
+
+    .filter-chips {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        gap: 6px;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-chip {
+        white-space: nowrap;
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+
+    .section-label-row {
+        padding: 2px 0;
+    }
+
+    .user-list-wrapper {
+        flex: 1;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .contact-card {
+        padding: 11px 14px;
+        gap: 12px;
+    }
+
+    .contact-avatar {
+        width: 44px;
+        height: 44px;
+    }
+
+    .sidebar-footer-sync {
+        display: none !important;
+    }
+
+    /* 3. CHAT CANVAS & MOBILE SCREEN SWITCHING */
+    /* By default on mobile: chat canvas is hidden, user browses sidebar list */
+    .chat-canvas {
+        display: none;
+    }
+
+    /* When a chat is opened on mobile (.mobile-chat-open) */
+    .mobile-chat-open .app-topbar,
+    .main-workspace.mobile-chat-open .app-topbar {
+        display: none !important;
+    }
+
+    .mobile-chat-open .nav-rail,
+    .main-workspace.mobile-chat-open .nav-rail {
+        display: none !important;
+    }
+
+    .mobile-chat-open .sidebar-messages,
+    .main-workspace.mobile-chat-open .sidebar-messages {
+        display: none !important;
+    }
+
+    .mobile-chat-open .chat-canvas,
+    .main-workspace.mobile-chat-open .chat-canvas {
+        display: flex !important;
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        z-index: 50 !important;
+    }
+
+    /* Header in Mobile Chat View */
+    .chat-header {
+        height: 56px;
+        min-height: 56px;
+        padding: 0 10px;
+        gap: 6px;
+    }
+
+    .mobile-back-btn {
+        display: inline-flex !important;
+    }
+
+    .peer-avatar {
+        width: 38px;
+        height: 38px;
+    }
+
+    .peer-details {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .peer-name {
+        font-size: 14.5px;
+        font-weight: 600;
+        max-width: 160px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .peer-status {
+        font-size: 11px;
+        max-width: 160px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .header-action-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 13px;
+    }
+
+    /* Pinned Message Banner on Mobile */
+    .pinned-banner {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .pinned-label {
+        display: none;
+    }
+
+    .pinned-text {
+        max-width: 160px;
+    }
+
+    /* Message Feed & Bubbles */
+    .message-feed {
+        padding: 10px 10px 4px 10px;
+        gap: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .message-bubble {
+        max-width: 86%;
+    }
+
+    .msg-content {
+        font-size: 14px;
+    }
+
+    .audio-bubble {
+        min-width: 210px;
+        max-width: 88%;
+    }
+
+    /* Chat Composer on Mobile */
+    .chat-composer-wrapper {
+        padding: 6px 8px env(safe-area-inset-bottom, 8px) 8px;
+    }
+
+    .composer-card {
+        height: 48px;
+        padding: 0 6px 0 8px;
+        gap: 4px;
+        border-radius: var(--radius-pill);
+    }
+
+    #chatMessageInput {
+        font-size: 16px !important; /* Prevents auto-zoom on iOS Safari */
+        padding: 6px 4px;
+    }
+
+    .composer-icon-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+
+    .composer-send-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+
+    .composer-meta-row {
+        display: none !important;
+    }
+
+    /* Mobile Emoji Picker Popup */
+    .emoji-picker-bar {
+        position: fixed !important;
+        left: 8px !important;
+        right: 8px !important;
+        bottom: 64px !important;
+        width: auto !important;
+        max-width: calc(100vw - 16px) !important;
+        height: 280px !important;
+        z-index: 100 !important;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
+    }
+
+    .emoji-scroll-body {
+        max-height: 170px;
+    }
+
+    .emoji-grid {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+    }
+
+    .emoji-btn {
+        font-size: 20px;
+        height: 34px;
+    }
+
+    /* Mobile Voice Recording Overlay */
+    .voice-recording-overlay {
+        height: 48px;
+        padding: 4px 10px;
+        gap: 6px;
+    }
+
+    .voice-rec-left {
+        min-width: 0;
+        gap: 6px;
+    }
+
+    .voice-rec-label {
+        display: none;
+    }
+
+    .voice-rec-waveform {
+        max-width: 75px;
+    }
+
+    .voice-rec-btn {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+
+    .voice-rec-btn span {
+        display: none;
+    }
+
+    /* Mobile Contact Details Drawer */
+    .chat-details-pane {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        z-index: 200 !important;
+        border-left: none !important;
+    }
+
+    /* Mobile Auth Modal */
+    .auth-overlay {
+        padding: 12px;
+    }
+
+    .auth-card {
+        width: 95% !important;
+        max-width: 380px !important;
+        padding: 22px 18px !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+
+    .demo-hints {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .demo-hints .chip {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+
+    /* Mobile Settings Modal */
+    .settings-overlay {
+        padding: 10px;
+    }
+
+    .settings-card {
+        width: 96% !important;
+        max-width: 480px !important;
+        height: 88vh !important;
+        max-height: 88vh !important;
+        margin: auto;
+    }
+
+    .settings-card-body {
+        flex-direction: column !important;
+        overflow: hidden;
+    }
+
+    .settings-sidebar {
+        width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--sidebar-border) !important;
+        padding: 8px 10px !important;
+        flex-shrink: 0;
+        gap: 6px;
+    }
+
+    .settings-user-card {
+        display: none !important;
+    }
+
+    .settings-tabs-list {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        gap: 6px !important;
+        padding-bottom: 4px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .settings-nav-item {
+        white-space: nowrap !important;
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        border-radius: var(--radius-pill) !important;
+    }
+
+    .settings-panel {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        padding: 16px 14px !important;
+    }
+
+    .theme-cards-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .wallpaper-swatches {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Mobile Profile Popover */
+    .profile-popover {
+        position: fixed !important;
+        bottom: 70px !important;
+        right: 12px !important;
+        left: 12px !important;
+        width: auto !important;
+        max-width: 340px !important;
+        margin: 0 auto;
+        z-index: 150 !important;
+    }
+
+    /* Landing / Home Screen Responsive */
+    .home-screen {
+        overflow-x: hidden;
+    }
+
+    .home-nav-container {
+        padding: 0 14px;
+        height: 56px;
+    }
+
+    .home-nav-links {
+        display: none !important;
+    }
+
+    .home-nav-brand .brand-tagline {
+        display: none;
+    }
+
+    .home-nav-actions .home-nav-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .home-hero {
+        padding: 40px 14px 28px;
+    }
+
+    .hero-badge-pill {
+        font-size: 11px;
+        padding: 4px 10px;
+        flex-wrap: wrap;
+        text-align: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .hero-title {
+        font-size: 28px !important;
+        line-height: 1.25;
+        margin: 16px 0 12px;
+    }
+
+    .hero-subtitle {
+        font-size: 13.5px;
+        margin-bottom: 22px;
+    }
+
+    .hero-cta-group {
+        flex-direction: column;
+        width: 100%;
+        max-width: 320px;
+        margin: 0 auto 20px;
+        gap: 10px;
+    }
+
+    .hero-cta-primary, 
+    .hero-cta-secondary {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 18px;
+    }
+
+    .hero-demo-bar {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .demo-chips-row {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .home-preview-section {
+        padding: 30px 12px;
+    }
+
+    .section-title {
+        font-size: 22px;
+    }
+
+    .preview-highlights-row {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .mockup-frame {
+        border-radius: 12px;
+    }
+
+    .mockup-live-status,
+    .mockup-rail,
+    .mockup-sidebar {
+        display: none !important;
+    }
+
+    .mockup-body {
+        height: 280px;
+    }
+
+    .academic-card {
+        padding: 20px 14px;
+    }
+
+    .academic-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+
+    .academic-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .cta-banner-box {
+        padding: 30px 18px;
+        border-radius: 16px;
+    }
+
+    .cta-banner-box h2 {
+        font-size: 22px;
+    }
+
+    .cta-banner-btns {
+        flex-direction: column;
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+        gap: 10px;
+    }
+
+    .footer-row {
+        flex-direction: column;
+        text-align: center;
+        gap: 14px;
+    }
+
+    .footer-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
+
+/* Extra small devices (phones <= 480px) */
+@media (max-width: 480px) {
+    .home-nav-btn.ghost span {
+        display: none;
+    }
+
+    .messages-heading h2 {
+        font-size: 17px;
+    }
+
+    .contact-card {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .contact-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .contact-name {
+        font-size: 13.5px;
+    }
+
+    .contact-preview {
+        font-size: 12px;
+    }
+
+    .message-bubble {
+        max-width: 88%;
+    }
+
+    .audio-bubble {
+        min-width: 190px;
+    }
+
+    .peer-name,
+    .peer-status,
+    .pinned-text {
+        max-width: 130px;
+    }
 }

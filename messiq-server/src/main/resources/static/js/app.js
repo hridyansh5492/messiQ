@@ -441,6 +441,7 @@ function handleLogout(e) {
 }
 
 function executeSignOut() {
+    closeActiveChatOnMobile(false);
     closeProfilePopover();
     closeContactDetailsPane();
 
@@ -1054,6 +1055,7 @@ function updateActiveChatPinButton() {
 }
 
 function switchToMessagesView() {
+    closeActiveChatOnMobile(false);
     currentView = 'messages';
     const railMsg = document.getElementById('railBtnMessages');
     const railContacts = document.getElementById('railBtnContacts');
@@ -1079,6 +1081,7 @@ function switchToMessagesView() {
 }
 
 function switchToContactsView() {
+    closeActiveChatOnMobile(false);
     currentView = 'contacts';
     const railMsg = document.getElementById('railBtnMessages');
     const railContacts = document.getElementById('railBtnContacts');
@@ -1104,6 +1107,7 @@ function switchToContactsView() {
 }
 
 function switchToPinnedView() {
+    closeActiveChatOnMobile(false);
     currentView = 'pinned';
     const railMsg = document.getElementById('railBtnMessages');
     const railContacts = document.getElementById('railBtnContacts');
@@ -1505,10 +1509,39 @@ function renderContactsCards(users) {
 }
 
 /**
+ * Mobile responsive: close active chat and return to sidebar conversations/contacts list
+ */
+function closeActiveChatOnMobile(syncHistory = true) {
+    const mainScreen = document.getElementById('mainScreen');
+    const appShell = document.getElementById('app');
+    if (mainScreen) mainScreen.classList.remove('mobile-chat-open');
+    if (appShell) appShell.classList.remove('mobile-chat-open');
+    closeContactDetailsPane();
+    closeEmojiPicker();
+
+    if (syncHistory && history.state && history.state.chatOpen) {
+        history.back();
+    }
+}
+
+/**
  * Select a conversation peer and open chat
  */
 function selectConversationPeer(peer) {
     activePeer = peer;
+
+    // Mobile responsive state: switch view to chat canvas
+    const mainScreen = document.getElementById('mainScreen');
+    const appShell = document.getElementById('app');
+    if (mainScreen) mainScreen.classList.add('mobile-chat-open');
+    if (appShell) appShell.classList.add('mobile-chat-open');
+
+    // Mobile browser history entry so Android/iOS back gestures work naturally
+    if (window.innerWidth <= 768) {
+        try {
+            history.pushState({ chatOpen: true, peerId: peer.id }, '');
+        } catch (e) {}
+    }
 
     // Reveal chat canvas, hide empty state
     document.getElementById('chatEmptyState').classList.add('hidden');
@@ -2899,6 +2932,24 @@ function viewAllSharedMedia() {
 }
 
 function initGlobalKeyListeners() {
+    // Mobile back navigation (Android back button & iOS back swipe)
+    window.addEventListener('popstate', (e) => {
+        const mainScreen = document.getElementById('mainScreen');
+        if (mainScreen && mainScreen.classList.contains('mobile-chat-open')) {
+            closeActiveChatOnMobile(false);
+        }
+    });
+
+    // Window resize handler: clean up mobile-chat-open state if resized to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            const mainScreen = document.getElementById('mainScreen');
+            const appShell = document.getElementById('app');
+            if (mainScreen) mainScreen.classList.remove('mobile-chat-open');
+            if (appShell) appShell.classList.remove('mobile-chat-open');
+        }
+    });
+
     // Escape key closes modals and popovers
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {

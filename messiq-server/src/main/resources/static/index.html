@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>messiQ - Real-Time Messenger</title>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -1036,6 +1036,10 @@
                     
                     <!-- Chat Header -->
                     <header class="chat-header">
+                        <!-- Mobile Back to List Button -->
+                        <button type="button" id="mobileBackBtn" class="mobile-back-btn" onclick="closeActiveChatOnMobile()" title="Back to conversations">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
                         <div class="chat-peer-profile" onclick="toggleContactDetailsPane()" style="cursor:pointer;" title="Click to view Contact Info">
                             <div class="avatar-container">
                                 <img id="activeTargetAvatar" src="" alt="Target Avatar" class="peer-avatar">
