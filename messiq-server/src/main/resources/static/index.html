@@ -7,7 +7,7 @@
     <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Custom Stylesheet -->
@@ -17,8 +17,424 @@
     <!-- Main Shell -->
     <div id="app" class="app-shell">
 
-        <!-- TOP APPLICATION BAR -->
-        <header class="app-topbar">
+        <!-- ========================================================= -->
+        <!-- 1. FULL-SCREEN HOME / LANDING PAGE                        -->
+        <!-- ========================================================= -->
+        <div id="homeScreen" class="home-screen">
+
+            <!-- HOME NAVIGATION BAR -->
+            <header class="home-nav">
+                <div class="home-nav-container">
+                    <div class="home-nav-brand" onclick="scrollToTop()">
+                        <div class="brand-badge-icon">
+                            <i class="fa-solid fa-comment-dots"></i>
+                        </div>
+                        <div class="brand-text-group">
+                            <span class="brand-title">messi<strong>Q</strong></span>
+                            <span class="brand-tagline">Real-Time Messenger</span>
+                        </div>
+                    </div>
+
+                    <nav class="home-nav-links">
+                        <a href="#features" class="home-nav-link" onclick="scrollToSection(event, 'features')">Features</a>
+                        <a href="#preview" class="home-nav-link" onclick="scrollToSection(event, 'preview')">Preview</a>
+                        <a href="#architecture" class="home-nav-link" onclick="scrollToSection(event, 'architecture')">Architecture</a>
+                        <a href="#academic" class="home-nav-link" onclick="scrollToSection(event, 'academic')">Academic Info</a>
+                    </nav>
+
+                    <div class="home-nav-actions">
+                        <button class="home-theme-btn" onclick="toggleTheme()" title="Toggle Light / Dark Mode">
+                            <i class="fa-solid fa-moon home-theme-icon"></i>
+                        </button>
+                        <button class="home-nav-btn ghost" onclick="openAuthModal('login')">
+                            <i class="fa-regular fa-circle-user"></i>
+                            <span>Sign In</span>
+                        </button>
+                        <button class="home-nav-btn primary" onclick="openAuthModal('register')">
+                            <span>Register</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- HERO SECTION -->
+            <section class="home-hero">
+                <div class="hero-container">
+                    <div class="hero-badge-pill">
+                        <span class="badge-icon"><i class="fa-solid fa-graduation-cap"></i></span>
+                        <span>Graphic Era Hill University • BCA Group 24</span>
+                        <span class="badge-dot"></span>
+                        <span class="badge-highlight">Java 21 & Spring Boot 3</span>
+                    </div>
+
+                    <h1 class="hero-title">
+                        Real-Time Messaging.<br>
+                        <span class="hero-gradient-text">A Little Closer, Wherever.</span>
+                    </h1>
+
+                    <p class="hero-subtitle">
+                        Experience sub-second peer-to-peer conversations, dynamic presence tracking, and seamless photo sharing. Crafted with a modern Figma-inspired Celadon & Forest Obsidian design system.
+                    </p>
+
+                    <div class="hero-cta-group">
+                        <button class="hero-cta-primary" onclick="openAuthModal('register')">
+                            <span>Get Started Free</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <button class="hero-cta-secondary" onclick="openAuthModal('login')">
+                            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                            <span>Sign In to messiQ</span>
+                        </button>
+                    </div>
+
+                    <!-- Quick Demo Launcher -->
+                    <div class="hero-demo-bar">
+                        <span class="demo-label"><i class="fa-solid fa-bolt"></i> Quick Demo Logins:</span>
+                        <div class="demo-chips-row">
+                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('hridyansh')" title="One-click login as Hridyansh Sati">
+                                <span class="chip-avatar">H</span>
+                                <span>hridyansh</span>
+                            </button>
+                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('maya')" title="One-click login as Maya Chen">
+                                <span class="chip-avatar">M</span>
+                                <span>maya</span>
+                            </button>
+                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('megha')" title="One-click login as Megha Dhami">
+                                <span class="chip-avatar">MD</span>
+                                <span>megha</span>
+                            </button>
+                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('janmejay')" title="One-click login as Prof. Janmejay Pant">
+                                <span class="chip-avatar">J</span>
+                                <span>janmejay</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- INTERACTIVE UI PREVIEW / FIGMA DESIGN MOCKUP -->
+            <section id="preview" class="home-preview-section">
+                <div class="section-container">
+                    <div class="section-header">
+                        <span class="section-kicker">FIGMA DESIGN SYSTEM</span>
+                        <h2 class="section-title">Crafted for Clarity and Focus</h2>
+                        <p class="section-desc">A thoughtful 3-column architecture designed for seamless communication.</p>
+                    </div>
+
+                    <div class="mockup-frame">
+                        <div class="mockup-top-bar">
+                            <div class="mockup-dots">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                            <div class="mockup-search-pill">
+                                <i class="fa-solid fa-lock"></i>
+                                <span>messiq.internal/app • STOMP Active</span>
+                            </div>
+                            <div class="mockup-live-status">
+                                <span class="status-indicator-dot online"></span>
+                                <span>Online & Synced</span>
+                            </div>
+                        </div>
+
+                        <div class="mockup-body">
+                            <!-- Mini Rail -->
+                            <div class="mockup-rail">
+                                <div class="mini-rail-icon active"><i class="fa-solid fa-comment"></i></div>
+                                <div class="mini-rail-icon"><i class="fa-solid fa-user-group"></i></div>
+                                <div class="mini-rail-icon"><i class="fa-regular fa-bell"></i></div>
+                                <div class="mini-rail-spacer"></div>
+                                <div class="mini-rail-avatar"><img src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="Demo"></div>
+                            </div>
+
+                            <!-- Mini Sidebar -->
+                            <div class="mockup-sidebar">
+                                <div class="mini-search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <span>Search messages (⌘ K)</span>
+                                </div>
+                                <div class="mini-item active">
+                                    <div class="mini-avatar">
+                                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Maya">
+                                        <span class="status-indicator-dot online"></span>
+                                    </div>
+                                    <div class="mini-info">
+                                        <div class="mini-name-row">
+                                            <strong>Maya Chen</strong>
+                                            <span class="time">12:44 PM</span>
+                                        </div>
+                                        <p class="mini-snippet">Casa Olivo • Mallorca photos are ready!</p>
+                                    </div>
+                                </div>
+                                <div class="mini-item">
+                                    <div class="mini-avatar">
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=megha" alt="Megha">
+                                        <span class="status-indicator-dot online"></span>
+                                    </div>
+                                    <div class="mini-info">
+                                        <div class="mini-name-row">
+                                            <strong>Megha Dhami</strong>
+                                            <span class="time">11:15 AM</span>
+                                        </div>
+                                        <p class="mini-snippet">Algorithm 3 verification completed.</p>
+                                    </div>
+                                </div>
+                                <div class="mini-item">
+                                    <div class="mini-avatar">
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=janmejay" alt="Janmejay">
+                                        <span class="status-indicator-dot online"></span>
+                                    </div>
+                                    <div class="mini-info">
+                                        <div class="mini-name-row">
+                                            <strong>Prof. Janmejay Pant</strong>
+                                            <span class="time">Yesterday</span>
+                                        </div>
+                                        <p class="mini-snippet">Great progress on the synopsis submission.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mini Chat Canvas -->
+                            <div class="mockup-canvas">
+                                <div class="mini-chat-header">
+                                    <div class="mini-chat-target">
+                                        <strong>Maya Chen</strong>
+                                        <span class="online-text">● Online now • Photographer, good friend</span>
+                                    </div>
+                                    <div class="mini-header-icons">
+                                        <i class="fa-solid fa-phone"></i>
+                                        <i class="fa-solid fa-video"></i>
+                                    </div>
+                                </div>
+                                <div class="mini-chat-feed">
+                                    <div class="mini-pinned">
+                                        <i class="fa-solid fa-thumbtack"></i>
+                                        <span>📌 A slower kind of story — our November moodboard</span>
+                                    </div>
+                                    <div class="mini-bubble incoming">
+                                        <p>Here are the latest moodboard previews from Mallorca!</p>
+                                        <span class="mini-meta">12:42 PM</span>
+                                    </div>
+                                    <div class="mini-photo-card">
+                                        <div class="photo-placeholder">
+                                            <i class="fa-solid fa-image"></i>
+                                            <span>Casa Olivo • Mallorca, Spain (2.4 MB)</span>
+                                        </div>
+                                    </div>
+                                    <div class="mini-bubble outgoing">
+                                        <p>Stunning colors! The lighting is truly perfect.</p>
+                                        <span class="mini-meta">12:44 PM ✓✓</span>
+                                    </div>
+                                </div>
+                                <div class="mini-composer">
+                                    <div class="mini-composer-pill">
+                                        <i class="fa-solid fa-plus mini-plus"></i>
+                                        <span>Write a little something...</span>
+                                        <div class="mini-send-btn"><i class="fa-solid fa-paper-plane"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CORE FEATURES SECTION -->
+            <section id="features" class="home-features-section">
+                <div class="section-container">
+                    <div class="section-header">
+                        <span class="section-kicker">ENGINEERED FOR EXCELLENCE</span>
+                        <h2 class="section-title">Core Capabilities & Modules</h2>
+                        <p class="section-desc">Every layer of messiQ is built to provide an instant, reliable messaging experience.</p>
+                    </div>
+
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon-box"><i class="fa-solid fa-bolt"></i></div>
+                            <h3>Real-Time WebSocket & STOMP</h3>
+                            <p>Sub-millisecond two-way communication using Spring WebSocket and STOMP message broker. No polling, zero latency.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon-box"><i class="fa-solid fa-circle-dot"></i></div>
+                            <h3>Live Online/Offline Presence</h3>
+                            <p>Automated session lifecycle listeners track user connectivity, broadcasting live status updates to all active contacts.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon-box"><i class="fa-solid fa-image"></i></div>
+                            <h3>Instant Photo & Media Sharing</h3>
+                            <p>Multipart file upload service with safe unique file hashing, providing inline photo previews in conversation bubbles.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon-box"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                            <h3>Chronological Message History</h3>
+                            <p>Persistent database queries retrieve conversations in chronological order with delivery receipts and read indicators.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon-box"><i class="fa-solid fa-circle-half-stroke"></i></div>
+                            <h3>Dual Light & Dark Theming</h3>
+                            <p>Figma-crafted Warm Ivory & Celadon for bright daytime and Obsidian & Forest Slate for distraction-free night focus.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon-box"><i class="fa-solid fa-shield-halved"></i></div>
+                            <h3>Secure Authentication</h3>
+                            <p>SHA-256 hashed password protection, unique handle verification, and isolated tokenized session management.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ARCHITECTURE & SYNOPSIS ALGORITHMS -->
+            <section id="architecture" class="home-arch-section">
+                <div class="section-container">
+                    <div class="section-header">
+                        <span class="section-kicker">ACADEMIC SPECIFICATIONS</span>
+                        <h2 class="section-title">Implemented Synopsis Algorithms</h2>
+                        <p class="section-desc">Strictly adheres to Chapter 4 of the Bachelor of Computer Application curriculum requirements.</p>
+                    </div>
+
+                    <div class="algorithms-list">
+                        <div class="algo-row">
+                            <span class="algo-badge">Algorithm 1</span>
+                            <div class="algo-details">
+                                <h4>User Registration</h4>
+                                <p>Validates username and email uniqueness, hashes passwords securely with SHA-256, and stores user entity into the database.</p>
+                            </div>
+                        </div>
+                        <div class="algo-row">
+                            <span class="algo-badge">Algorithm 2</span>
+                            <div class="algo-details">
+                                <h4>User Login & Session</h4>
+                                <p>Authenticates credentials, issues secure session token, and establishes WebSocket handshake for real-time presence.</p>
+                            </div>
+                        </div>
+                        <div class="algo-row">
+                            <span class="algo-badge">Algorithm 3</span>
+                            <div class="algo-details">
+                                <h4>Send Real-Time Message</h4>
+                                <p>Routes message payload through WebSocket destination /app/chat.sendMessage to pair topic and user queue.</p>
+                            </div>
+                        </div>
+                        <div class="algo-row">
+                            <span class="algo-badge">Algorithm 4</span>
+                            <div class="algo-details">
+                                <h4>Chronological History Retrieval</h4>
+                                <p>Queries database for pairwise messages where (sender=A ∧ receiver=B) ∨ (sender=B ∧ receiver=A) sorted by timestamp ascending.</p>
+                            </div>
+                        </div>
+                        <div class="algo-row">
+                            <span class="algo-badge">Algorithm 5</span>
+                            <div class="algo-details">
+                                <h4>Online / Offline Presence Broadcast</h4>
+                                <p>SessionConnectedEvent and SessionDisconnectEvent trigger automated presence broadcasts across /topic/status.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ACADEMIC & PROJECT ATTRIBUTION SECTION -->
+            <section id="academic" class="home-academic-section">
+                <div class="section-container">
+                    <div class="academic-card">
+                        <div class="academic-header">
+                            <div class="academic-logo-badge"><i class="fa-solid fa-building-columns"></i></div>
+                            <div>
+                                <h3>Graphic Era Hill University, Bhimtal Campus</h3>
+                                <p>School of Computing • Bachelor of Computer Application (BCA)</p>
+                            </div>
+                        </div>
+                        <div class="academic-grid">
+                            <div class="academic-info-item">
+                                <span class="info-label">Project Title:</span>
+                                <span class="info-val">Real-Time Messenger Application (messiQ)</span>
+                            </div>
+                            <div class="academic-info-item">
+                                <span class="info-label">Supervisor:</span>
+                                <span class="info-val">Mr. Janmejay Pant (Assistant Professor)</span>
+                            </div>
+                            <div class="academic-info-item">
+                                <span class="info-label">Group:</span>
+                                <span class="info-val">Group No. 24 (Sep-2026)</span>
+                            </div>
+                            <div class="academic-info-item">
+                                <span class="info-label">Contributors:</span>
+                                <span class="info-val">Hridyansh Sati (2471085) • Megha Dhami (2471126) • Hrithik Bashera (2471086)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BOTTOM CTA BANNER -->
+            <section class="home-bottom-cta">
+                <div class="section-container">
+                    <div class="cta-banner-box">
+                        <h2>Experience Real-Time Messaging Now</h2>
+                        <p>Join messiQ in seconds or explore with pre-seeded demo accounts.</p>
+                        <div class="cta-banner-btns">
+                            <button class="hero-cta-primary" onclick="openAuthModal('register')">
+                                <span>Create Your Account</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                            <button class="hero-cta-secondary" onclick="openAuthModal('login')">
+                                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                                <span>Sign In</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HOME FOOTER -->
+            <footer class="home-footer">
+                <div class="section-container">
+                    <div class="footer-row">
+                        <div class="footer-brand">
+                            <span class="brand-title">messi<strong>Q</strong></span>
+                            <span class="footer-copy">© 2026 Graphic Era Hill University • BCA Group 24</span>
+                        </div>
+                        <div class="footer-actions">
+                            <button class="footer-link-btn" onclick="openAuthModal('login')">Sign In</button>
+                            <button class="footer-link-btn" onclick="openAuthModal('register')">Register</button>
+                            <button class="footer-link-btn" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i> Theme</button>
+                            <button class="footer-link-btn" onclick="scrollToTop()"><i class="fa-solid fa-arrow-up"></i> Top</button>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 2. FULL-SCREEN WHITE LOADING SCREEN (Loading at Centre)  -->
+        <!-- ========================================================= -->
+        <div id="loadingScreen" class="loading-screen hidden">
+            <div class="loading-center-content">
+                <div class="loading-logo-box">
+                    <div class="loading-badge-icon">
+                        <i class="fa-solid fa-comment-dots"></i>
+                    </div>
+                    <div class="loading-pulse-ring"></div>
+                </div>
+
+                <div class="loading-spinner-wrapper">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <h2 class="loading-brand-title">messi<span>Q</span></h2>
+                <p id="loadingStatusText" class="loading-status-text">Connecting to your encrypted workspace...</p>
+                
+                <div class="loading-progress-track">
+                    <div class="loading-progress-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- 3. TOP APPLICATION BAR (Active Dashboard Only)            -->
+        <!-- ========================================================= -->
+        <header id="appTopbar" class="app-topbar hidden">
             <div class="topbar-brand">
                 <div class="brand-badge-icon">
                     <i class="fa-solid fa-comment-dots"></i>
@@ -41,9 +457,16 @@
             </div>
         </header>
 
-        <!-- AUTH SCREEN MODAL OVERLAY -->
-        <div id="authScreen" class="auth-overlay hidden">
-            <div class="auth-card">
+        <!-- ========================================================= -->
+        <!-- 4. AUTH SCREEN MODAL OVERLAY                              -->
+        <!-- ========================================================= -->
+        <div id="authScreen" class="auth-overlay hidden" onclick="handleAuthOverlayClick(event)">
+            <div class="auth-card" onclick="event.stopPropagation()">
+                <!-- Close Button -->
+                <button type="button" class="auth-close-btn" onclick="closeAuthModal()" title="Back to messiQ Home">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
                 <div class="auth-brand">
                     <div class="brand-badge-icon lg">
                         <i class="fa-solid fa-bolt"></i>
@@ -107,11 +530,19 @@
                         <i class="fa-solid fa-user-plus"></i>
                     </button>
                 </form>
+
+                <div class="auth-card-footer">
+                    <button type="button" class="back-home-link" onclick="closeAuthModal()">
+                        <i class="fa-solid fa-arrow-left"></i> Back to messiQ Home
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- MAIN MESSENGER WORKSPACE -->
-        <div id="mainScreen" class="main-workspace">
+        <!-- ========================================================= -->
+        <!-- 5. MAIN MESSENGER WORKSPACE (Active Dashboard Only)       -->
+        <!-- ========================================================= -->
+        <div id="mainScreen" class="main-workspace hidden">
 
             <!-- 1. SLIM LEFT ICON NAVIGATION RAIL -->
             <nav class="nav-rail">
@@ -247,7 +678,6 @@
 
                     <!-- Chat Scroll Feed -->
                     <div id="messageFeed" class="message-feed">
-                        <!-- Date divider -->
                         <div class="date-divider">
                             <span>Today, October 29</span>
                         </div>

@@ -62,6 +62,12 @@ function applyTheme(theme) {
             themeIcon.parentElement.title = 'Switch to Dark Mode (Obsidian & Forest)';
         }
     }
+
+    // Sync theme toggle icons on Home Page as well
+    const homeThemeIcons = document.querySelectorAll('.home-theme-icon');
+    homeThemeIcons.forEach(icon => {
+        icon.className = theme === 'theme-dark' ? 'fa-solid fa-sun home-theme-icon' : 'fa-solid fa-moon home-theme-icon';
+    });
 }
 
 function updateTopbarDate() {
@@ -72,6 +78,118 @@ function updateTopbarDate() {
     }
 }
 
+// =========================================================
+// VIEW & SCREEN TRANSITIONS (HOME / AUTH / LOADING / APP)
+// =========================================================
+
+function showHomeScreen() {
+    const home = document.getElementById('homeScreen');
+    const auth = document.getElementById('authScreen');
+    const loading = document.getElementById('loadingScreen');
+    const topbar = document.getElementById('appTopbar');
+    const main = document.getElementById('mainScreen');
+
+    if (home) home.classList.remove('hidden');
+    if (auth) auth.classList.add('hidden');
+    if (loading) loading.classList.add('hidden');
+    if (topbar) topbar.classList.add('hidden');
+    if (main) main.classList.add('hidden');
+}
+
+function openAuthModal(tab = 'login') {
+    switchAuthTab(tab);
+    const alert = document.getElementById('authAlert');
+    if (alert) alert.classList.add('hidden');
+    const auth = document.getElementById('authScreen');
+    if (auth) auth.classList.remove('hidden');
+}
+
+function closeAuthModal() {
+    const auth = document.getElementById('authScreen');
+    if (auth) auth.classList.add('hidden');
+}
+
+function handleAuthOverlayClick(e) {
+    if (e.target.id === 'authScreen') {
+        closeAuthModal();
+    }
+}
+
+function scrollToTop() {
+    const home = document.getElementById('homeScreen');
+    if (home) {
+        home.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function scrollToSection(e, sectionId) {
+    if (e) e.preventDefault();
+    const el = document.getElementById(sectionId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+/**
+ * 1-Click Quick Demo Login from the Landing Page
+ */
+function quickDemoLogin(username) {
+    fillDemo(username, 'messiq123');
+    openAuthModal('login');
+    executeLogin(username, 'messiq123');
+}
+
+/**
+ * Display full-screen white background loading screen with centered spinner
+ * before revealing the messiQ workspace dashboard
+ */
+function showLoadingAndLaunchDashboard(user, isInitialLoad = false) {
+    const loadingScreen = document.getElementById('loadingScreen');
+    const statusText = document.getElementById('loadingStatusText');
+    const homeScreen = document.getElementById('homeScreen');
+    const appTopbar = document.getElementById('appTopbar');
+    const mainScreen = document.getElementById('mainScreen');
+    const authScreen = document.getElementById('authScreen');
+
+    if (authScreen) authScreen.classList.add('hidden');
+
+    const displayName = user ? (user.displayName || user.username) : 'User';
+    if (statusText) {
+        statusText.textContent = isInitialLoad
+            ? `Welcome back, ${displayName}! Preparing workspace...`
+            : `Welcome, ${displayName}! Loading your chats...`;
+    }
+
+    if (loadingScreen) {
+        loadingScreen.classList.remove('hidden');
+        loadingScreen.classList.remove('fade-out');
+    }
+
+    // Initialize the background data: user profile, avatar, websocket & contacts
+    initMessengerDashboard();
+
+    // Display duration for the pristine white loading animation
+    const displayDuration = isInitialLoad ? 800 : 1200;
+
+    setTimeout(() => {
+        // Transition: Hide home, reveal messenger dashboard
+        if (homeScreen) homeScreen.classList.add('hidden');
+        if (appTopbar) appTopbar.classList.remove('hidden');
+        if (mainScreen) mainScreen.classList.remove('hidden');
+
+        // Smoothly fade out loading screen
+        if (loadingScreen) {
+            loadingScreen.classList.add('fade-out');
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+                loadingScreen.classList.remove('fade-out');
+            }, 350);
+        }
+    }, displayDuration);
+}
+
 function checkStoredSession() {
     const storedUser = localStorage.getItem('messiq_user');
     const storedToken = localStorage.getItem('messiq_token');
@@ -79,14 +197,14 @@ function checkStoredSession() {
         try {
             currentUser = JSON.parse(storedUser);
             authToken = storedToken;
-            initMessengerDashboard();
+            showLoadingAndLaunchDashboard(currentUser, true);
             return;
         } catch (e) {
             localStorage.clear();
         }
     }
-    // Show auth modal overlay if not logged in
-    document.getElementById('authScreen').classList.remove('hidden');
+    // Show clean Home Page without any popup overlay on first visit
+    showHomeScreen();
 }
 
 // =========================================================
@@ -128,16 +246,14 @@ function showAuthAlert(msg, isSuccess = false) {
 }
 
 /**
- * Algorithm 2 - User Login
+ * Shared Login Execution Logic
  */
-async function handleLogin(e) {
-    e.preventDefault();
-    const identifier = document.getElementById('loginIdentifier').value.trim();
-    const password = document.getElementById('loginPassword').value;
-
+async function executeLogin(identifier, password) {
     const btn = document.getElementById('loginBtn');
-    btn.disabled = true;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...`;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...`;
+    }
 
     try {
         const response = await fetch('/api/auth/login', {
@@ -152,16 +268,31 @@ async function handleLogin(e) {
             authToken = data.token;
             localStorage.setItem('messiq_user', JSON.stringify(currentUser));
             localStorage.setItem('messiq_token', authToken);
-            initMessengerDashboard();
+
+            // Close auth pop-up and show white background loading sequence
+            closeAuthModal();
+            showLoadingAndLaunchDashboard(currentUser, false);
         } else {
             showAuthAlert(data.message || 'Invalid username or password', false);
         }
     } catch (err) {
         showAuthAlert('Unable to connect to messiQ server on port 8080.', false);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<span>Sign In</span> <i class="fa-solid fa-arrow-right"></i>`;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>Sign In</span> <i class="fa-solid fa-arrow-right"></i>`;
+        }
     }
+}
+
+/**
+ * Algorithm 2 - User Login
+ */
+async function handleLogin(e) {
+    e.preventDefault();
+    const identifier = document.getElementById('loginIdentifier').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    await executeLogin(identifier, password);
 }
 
 /**
@@ -192,13 +323,15 @@ async function handleRegister(e) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showAuthAlert('Registration Successful! Logging in...', true);
+            showAuthAlert('Registration Successful! Starting workspace...', true);
             setTimeout(() => {
                 currentUser = data.user;
                 authToken = data.token;
                 localStorage.setItem('messiq_user', JSON.stringify(currentUser));
                 localStorage.setItem('messiq_token', authToken);
-                initMessengerDashboard();
+
+                closeAuthModal();
+                showLoadingAndLaunchDashboard(currentUser, false);
             }, 600);
         } else {
             showAuthAlert(data.message || 'User already exists', false);
@@ -215,12 +348,16 @@ function handleLogout() {
     if (confirm('Are you sure you want to sign out of messiQ?')) {
         // Broadcast offline status
         if (stompClient && isConnected && currentUser) {
-            stompClient.send('/app/user.status', {}, JSON.stringify({
-                userId: currentUser.id,
-                username: currentUser.username,
-                status: 'OFFLINE'
-            }));
-            stompClient.disconnect();
+            try {
+                stompClient.send('/app/user.status', {}, JSON.stringify({
+                    userId: currentUser.id,
+                    username: currentUser.username,
+                    status: 'OFFLINE'
+                }));
+                stompClient.disconnect();
+            } catch (e) {
+                console.warn('Disconnect error:', e);
+            }
         }
         localStorage.removeItem('messiq_user');
         localStorage.removeItem('messiq_token');
@@ -228,7 +365,9 @@ function handleLogout() {
         authToken = null;
         activePeer = null;
 
-        document.getElementById('authScreen').classList.remove('hidden');
+        // Transition back to clean Home Page
+        showHomeScreen();
+        scrollToTop();
     }
 }
 
