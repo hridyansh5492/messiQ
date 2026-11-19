@@ -980,7 +980,22 @@ body.theme-dark .filter-chip:hover:not(.active) {
 
 .read-check {
     font-size: 11px;
-    opacity: 0.8;
+    opacity: 0.75;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    transition: color 0.25s ease, opacity 0.25s ease;
+}
+
+.read-check.is-read {
+    opacity: 1;
+    color: #38bdf8;
+    font-weight: 500;
+}
+
+.read-check i.blue-ticks,
+.read-check.is-read i {
+    color: #38bdf8 !important;
 }
 
 /* Media / Photo Cards (per Figma) */

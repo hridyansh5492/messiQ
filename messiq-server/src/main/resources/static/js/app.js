@@ -488,11 +488,64 @@ function handlePresenceUpdate(statusUpdate) {
     renderSidebarList();
 }
 
+// =========================================================
+// RECEIVER-SIDE MESSAGE DEDUPLICATION CACHE & READ RECEIPTS
+// =========================================================
+
+const processedMessageCache = new Set();
+
+function isMessageAlreadyProcessed(msg) {
+    if (!msg) return false;
+    let key = '';
+    if (msg.id) {
+        key = `id_${msg.id}`;
+    } else {
+        key = `fp_${msg.senderId}_${msg.receiverId}_${msg.timestamp}_${msg.content || ''}`;
+    }
+    if (processedMessageCache.has(key)) {
+        return true;
+    }
+    processedMessageCache.add(key);
+    if (processedMessageCache.size > 1000) {
+        const first = processedMessageCache.values().next().value;
+        processedMessageCache.delete(first);
+    }
+    return false;
+}
+
+function handleReadReceiptEvent(event) {
+    if (!currentUser || !event) return;
+    // When the peer reads our messages, turn all sent double ticks blue
+    if (activePeer && Number(event.receiverId) === Number(activePeer.id)) {
+        const feed = document.getElementById('messageFeed');
+        if (feed) {
+            const checks = feed.querySelectorAll('.msg-row.outgoing .read-check');
+            checks.forEach(check => {
+                check.classList.add('is-read');
+                check.title = 'Read';
+                check.innerHTML = `• Read <i class="fa-solid fa-check-double blue-ticks"></i>`;
+            });
+        }
+    }
+}
+
 /**
  * Instantaneous real-time message handler without page refresh
  */
 function handleIncomingMessage(chatMessage) {
-    if (!currentUser) return;
+    if (!currentUser || !chatMessage) return;
+
+    // 1. Check if this is a real-time read receipt notification
+    if (chatMessage.type === 'READ_RECEIPT') {
+        handleReadReceiptEvent(chatMessage);
+        return;
+    }
+
+    // 2. Triple Cache & duplicate reception protection on receiver's side
+    // Drops any duplicated packet arriving from multiple topics (user topic, queue, or pairwise topic)
+    if (isMessageAlreadyProcessed(chatMessage)) {
+        return;
+    }
 
     // Trigger audio chime & notification if message was sent by another user
     if (chatMessage.senderId !== currentUser.id) {
@@ -1245,13 +1298,8 @@ function subscribeToConversationChannels() {
     activeSubscription = stompClient.subscribe(`/topic/messages.${channelKey}`, (msg) => {
         try {
             const chatMessage = JSON.parse(msg.body);
-            // Append incoming message from the peer
-            if (chatMessage.senderId !== currentUser.id) {
-                appendMessageBubble(chatMessage);
-                scrollFeedToBottom();
-                fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${activePeer.id}`, { method: 'POST' });
-            }
-            updateConversationInList(chatMessage);
+            // Route through handleIncomingMessage with deduplication cache protection
+            handleIncomingMessage(chatMessage);
         } catch (e) {
             console.error('Error handling pairwise message', e);
         }
@@ -1323,12 +1371,39 @@ function refreshActiveConversation() {
  */
 function appendMessageBubble(msg) {
     const feed = document.getElementById('messageFeed');
+    if (!feed) return;
+
+    // DOM duplicate check and live status update
+    if (msg.id) {
+        const existing = feed.querySelector(`.msg-row[data-msg-id="${msg.id}"]`);
+        if (existing) {
+            if (msg.status === 'READ') {
+                const check = existing.querySelector('.read-check');
+                if (check) {
+                    check.classList.add('is-read');
+                    check.title = 'Read';
+                    check.innerHTML = `• Read <i class="fa-solid fa-check-double blue-ticks"></i>`;
+                }
+            }
+            return;
+        }
+    }
+
     const isSent = msg.senderId === currentUser.id;
+    const isRead = msg.status === 'READ';
 
     const row = document.createElement('div');
     row.className = `msg-row ${isSent ? 'outgoing' : 'incoming'}`;
+    if (msg.id) {
+        row.setAttribute('data-msg-id', msg.id);
+    }
 
     const timeStr = formatTime(msg.timestamp);
+    const readCheckHtml = isSent 
+        ? (isRead 
+            ? `<span class="read-check is-read" title="Read">• Read <i class="fa-solid fa-check-double blue-ticks"></i></span>`
+            : `<span class="read-check" title="Delivered">• Sent <i class="fa-solid fa-check-double"></i></span>`)
+        : '';
 
     // 1. Photo / Media Card (matching Figma Casa Olivo shoot layout)
     if (msg.mediaUrl && (msg.type === 'IMAGE' || msg.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i))) {
@@ -1345,7 +1420,7 @@ function appendMessageBubble(msg) {
             </div>
             <div class="msg-meta">
                 <span>${timeStr}</span>
-                ${isSent ? `<span class="read-check">• Read <i class="fa-solid fa-check-double"></i></span>` : ''}
+                ${readCheckHtml}
             </div>
         `;
     } 
@@ -1376,7 +1451,7 @@ function appendMessageBubble(msg) {
             </div>
             <div class="msg-meta">
                 <span>${timeStr}</span>
-                ${isSent ? `<span class="read-check">• Read <i class="fa-solid fa-check-double"></i></span>` : ''}
+                ${readCheckHtml}
             </div>
         `;
     }
@@ -1389,7 +1464,7 @@ function appendMessageBubble(msg) {
             </div>
             <div class="msg-meta">
                 <span>${timeStr}</span>
-                ${isSent ? `<span class="read-check">• Read <i class="fa-solid fa-check-double"></i></span>` : ''}
+                ${readCheckHtml}
             </div>
         `;
     }

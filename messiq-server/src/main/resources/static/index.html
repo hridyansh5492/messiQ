@@ -96,17 +96,13 @@
                                 <span class="chip-avatar">H</span>
                                 <span>hridyansh</span>
                             </button>
-                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('maya')" title="One-click login as Maya Chen">
-                                <span class="chip-avatar">M</span>
-                                <span>maya</span>
-                            </button>
                             <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('megha')" title="One-click login as Megha Dhami">
                                 <span class="chip-avatar">MD</span>
                                 <span>megha</span>
                             </button>
-                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('janmejay')" title="One-click login as Prof. Janmejay Pant">
-                                <span class="chip-avatar">J</span>
-                                <span>janmejay</span>
+                            <button type="button" class="hero-demo-chip" onclick="quickDemoLogin('hrithik')" title="One-click login as Hrithik Bashera">
+                                <span class="chip-avatar">HB</span>
+                                <span>hrithik</span>
                             </button>
                         </div>
                     </div>
@@ -157,19 +153,6 @@
                                 </div>
                                 <div class="mini-item active">
                                     <div class="mini-avatar">
-                                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Maya">
-                                        <span class="status-indicator-dot online"></span>
-                                    </div>
-                                    <div class="mini-info">
-                                        <div class="mini-name-row">
-                                            <strong>Maya Chen</strong>
-                                            <span class="time">12:44 PM</span>
-                                        </div>
-                                        <p class="mini-snippet">Casa Olivo • Mallorca photos are ready!</p>
-                                    </div>
-                                </div>
-                                <div class="mini-item">
-                                    <div class="mini-avatar">
                                         <img src="https://api.dicebear.com/7.x/bottts/svg?seed=megha" alt="Megha">
                                         <span class="status-indicator-dot online"></span>
                                     </div>
@@ -178,20 +161,20 @@
                                             <strong>Megha Dhami</strong>
                                             <span class="time">11:15 AM</span>
                                         </div>
-                                        <p class="mini-snippet">Algorithm 3 verification completed.</p>
+                                        <p class="mini-snippet">messiQ is live and running smoothly!</p>
                                     </div>
                                 </div>
                                 <div class="mini-item">
                                     <div class="mini-avatar">
-                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=janmejay" alt="Janmejay">
-                                        <span class="status-indicator-dot online"></span>
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=hrithik" alt="Hrithik">
+                                        <span class="status-indicator-dot offline"></span>
                                     </div>
                                     <div class="mini-info">
                                         <div class="mini-name-row">
-                                            <strong>Prof. Janmejay Pant</strong>
+                                            <strong>Hrithik Bashera</strong>
                                             <span class="time">Yesterday</span>
                                         </div>
-                                        <p class="mini-snippet">Great progress on the synopsis submission.</p>
+                                        <p class="mini-snippet">Ready for the demo showcase.</p>
                                     </div>
                                 </div>
                             </div>
@@ -200,8 +183,8 @@
                             <div class="mockup-canvas">
                                 <div class="mini-chat-header">
                                     <div class="mini-chat-target">
-                                        <strong>Maya Chen</strong>
-                                        <span class="online-text">● Online now • Photographer, good friend</span>
+                                        <strong>Megha Dhami</strong>
+                                        <span class="online-text">● Online now • Available</span>
                                     </div>
                                     <div class="mini-header-icons">
                                         <i class="fa-solid fa-phone"></i>
@@ -211,7 +194,7 @@
                                 <div class="mini-chat-feed">
                                     <div class="mini-pinned">
                                         <i class="fa-solid fa-thumbtack"></i>
-                                        <span>📌 A slower kind of story — our November moodboard</span>
+                                        <span>📌 Real-time encrypted channel active</span>
                                     </div>
                                     <div class="mini-bubble incoming">
                                         <p>Here are the latest moodboard previews from Mallorca!</p>
@@ -489,7 +472,7 @@
                 <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
                     <div class="form-group">
                         <label for="loginIdentifier"><i class="fa-regular fa-user"></i> Username or Email</label>
-                        <input type="text" id="loginIdentifier" placeholder="e.g. hridyansh or maya" required autocomplete="username">
+                        <input type="text" id="loginIdentifier" placeholder="e.g. hridyansh or megha" required autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label>
@@ -499,7 +482,7 @@
                         <span>Demo Accounts:</span>
                         <button type="button" class="chip" onclick="fillDemo('hridyansh', 'messiq123')">hridyansh</button>
                         <button type="button" class="chip" onclick="fillDemo('megha', 'messiq123')">megha</button>
-                        <button type="button" class="chip" onclick="fillDemo('janmejay', 'messiq123')">janmejay</button>
+                        <button type="button" class="chip" onclick="fillDemo('hrithik', 'messiq123')">hrithik</button>
                     </div>
                     <button type="submit" id="loginBtn" class="btn btn-primary btn-block">
                         <span>Sign In</span>
@@ -511,15 +494,15 @@
                 <form id="registerForm" class="auth-form hidden" onsubmit="handleRegister(event)">
                     <div class="form-group">
                         <label for="regUsername"><i class="fa-regular fa-user"></i> Username</label>
-                        <input type="text" id="regUsername" placeholder="e.g. maya" required minlength="3">
+                        <input type="text" id="regUsername" placeholder="e.g. hrithik" required minlength="3">
                     </div>
                     <div class="form-group">
                         <label for="regDisplayName"><i class="fa-regular fa-id-badge"></i> Full Name</label>
-                        <input type="text" id="regDisplayName" placeholder="e.g. Maya Chen" required>
+                        <input type="text" id="regDisplayName" placeholder="e.g. Hrithik Bashera" required>
                     </div>
                     <div class="form-group">
                         <label for="regEmail"><i class="fa-regular fa-envelope"></i> Email Address</label>
-                        <input type="email" id="regEmail" placeholder="maya@gehu.ac.in" required>
+                        <input type="email" id="regEmail" placeholder="hrithik@gehu.ac.in" required>
                     </div>
                     <div class="form-group">
                         <label for="regPassword"><i class="fa-solid fa-lock"></i> Password</label>
@@ -613,7 +596,7 @@
                                         <i class="fa-solid fa-shuffle"></i>
                                         <span>Randomize Avatar</span>
                                     </button>
-                                    <span class="field-hint">Generated dynamically via Dicebear Vector Engine.</span>
+                                    <!-- Generated dynamically via Dicebear Vector Engine. -->
                                 </div>
                             </div>
 
@@ -1062,7 +1045,7 @@
                             <div class="typing-dots">
                                 <span></span><span></span><span></span>
                             </div>
-                            <span id="typingIndicatorText">Maya is typing</span>
+                            <span id="typingIndicatorText">Typing...</span>
                         </div>
                     </div>
 

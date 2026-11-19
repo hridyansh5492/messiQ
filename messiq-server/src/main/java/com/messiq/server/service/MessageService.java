@@ -122,6 +122,17 @@ public class MessageService {
     @Transactional
     public void markMessagesAsRead(Long receiverId, Long senderId) {
         messageRepository.updateMessagesAsRead(receiverId, senderId, MessageStatus.READ);
+        try {
+            java.util.Map<String, Object> readEvent = new java.util.HashMap<>();
+            readEvent.put("type", "READ_RECEIPT");
+            readEvent.put("receiverId", receiverId);
+            readEvent.put("senderId", senderId);
+            String conversationChannel = getConversationChannel(receiverId, senderId);
+            messagingTemplate.convertAndSend("/topic/user." + senderId, readEvent);
+            messagingTemplate.convertAndSend("/topic/messages." + conversationChannel, readEvent);
+        } catch (Exception e) {
+            System.err.println("Could not deliver read receipt frame: " + e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

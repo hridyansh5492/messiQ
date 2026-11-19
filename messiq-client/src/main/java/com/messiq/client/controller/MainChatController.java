@@ -74,6 +74,7 @@ public class MainChatController {
     private String uploadedMediaUrl = null;
     private boolean isDarkMode = false;
     private String currentTab = "all";
+    private final Set<String> processedMessageKeys = Collections.synchronizedSet(new HashSet<>());
 
     @FXML
     public void initialize() {
@@ -208,6 +209,14 @@ public class MainChatController {
     private void handleIncomingMessageJson(String json) {
         try {
             Map<String, Object> msg = objectMapper.readValue(json, Map.class);
+            if (msg.containsKey("id") && msg.get("id") != null) {
+                String idKey = "id_" + msg.get("id").toString();
+                if (!processedMessageKeys.add(idKey)) return;
+            } else if (msg.containsKey("timestamp") && msg.containsKey("senderId")) {
+                String fpKey = msg.get("senderId") + "_" + msg.get("timestamp") + "_" + msg.getOrDefault("content", "");
+                if (!processedMessageKeys.add(fpKey)) return;
+            }
+
             Long senderId = Long.parseLong(msg.get("senderId").toString());
             Long receiverId = Long.parseLong(msg.get("receiverId").toString());
 
@@ -409,8 +418,11 @@ public class MainChatController {
         timeLbl.getStyleClass().add("meta-time-text");
         metaRow.getChildren().add(timeLbl);
         if (isSent) {
-            Label readLbl = new Label("• Read ✓✓");
-            readLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #10b981;");
+            boolean isRead = "READ".equalsIgnoreCase((String) msg.getOrDefault("status", "SENT"));
+            Label readLbl = new Label(isRead ? "• Read ✓✓" : "• Sent ✓✓");
+            readLbl.setStyle(isRead 
+                    ? "-fx-font-size: 10px; -fx-text-fill: #38bdf8; -fx-font-weight: bold;" 
+                    : "-fx-font-size: 10px; -fx-text-fill: #94a3b8;");
             metaRow.getChildren().add(readLbl);
         }
         bubbleWrapper.getChildren().add(metaRow);
