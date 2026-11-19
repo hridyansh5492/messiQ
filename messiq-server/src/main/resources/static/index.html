@@ -1090,6 +1090,27 @@
 
                     <!-- Floating Rounded Input Composer -->
                     <footer class="chat-composer-wrapper">
+                        <!-- Quick Emoji Picker Bar -->
+                        <div id="emojiPickerBar" class="emoji-picker-bar hidden" onclick="event.stopPropagation()">
+                            <div class="emoji-picker-header">
+                                <span>Quick Emojis</span>
+                                <button type="button" class="emoji-picker-close" onclick="closeEmojiPicker()"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="emoji-list">
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('❤️')" title="Heart">❤️</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('😂')" title="Laughing / Joy">😂</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('😭')" title="Tears / Crying">😭</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('😊')" title="Smile">😊</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('😍')" title="Heart Eyes">😍</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('🔥')" title="Fire">🔥</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('👍')" title="Thumbs Up">👍</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('✨')" title="Sparkles">✨</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('🙏')" title="Pray / Thanks">🙏</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('🌿')" title="Celadon Sprout">🌿</button>
+                            </div>
+                        </div>
+
+                        <!-- Main Composer Input Form -->
                         <form id="chatForm" class="composer-card" onsubmit="handleSendMessage(event)">
                             <!-- Hidden File Input -->
                             <input type="file" id="mediaFileInput" accept="image/*,.pdf,.doc,.docx" class="hidden" onchange="handleFileSelected(event)">
@@ -1103,10 +1124,10 @@
                             <input type="text" id="chatMessageInput" placeholder="Write a little something..." autocomplete="off" oninput="handleTyping()">
 
                             <!-- Emoji & Mic Icons -->
-                            <button type="button" class="composer-icon-btn" title="Add Emoji" onclick="insertSampleEmoji()">
+                            <button type="button" id="emojiPickerBtn" class="composer-icon-btn" title="Add Emoji (❤️ 😂 😭 😊)" onclick="toggleEmojiPicker(event)">
                                 <i class="fa-regular fa-face-smile"></i>
                             </button>
-                            <button type="button" class="composer-icon-btn" title="Voice Message" onclick="sendSampleVoiceNote()">
+                            <button type="button" class="composer-icon-btn" title="Record Voice Message" onclick="startVoiceRecording()">
                                 <i class="fa-solid fa-microphone"></i>
                             </button>
 
@@ -1115,6 +1136,32 @@
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
                         </form>
+
+                        <!-- Voice Recording Bar (Active when recording voice note) -->
+                        <div id="voiceRecordingOverlay" class="voice-recording-overlay hidden">
+                            <div class="voice-rec-left">
+                                <span class="voice-rec-pulse"></span>
+                                <span class="voice-rec-label">Recording Voice Message</span>
+                                <span id="voiceRecTimer" class="voice-rec-timer">0:00</span>
+                            </div>
+
+                            <div class="voice-rec-waveform">
+                                <span></span><span></span><span></span><span></span><span></span>
+                                <span></span><span></span><span></span><span></span><span></span>
+                                <span></span><span></span><span></span><span></span><span></span>
+                            </div>
+
+                            <div class="voice-rec-actions">
+                                <button type="button" class="voice-rec-btn cancel" onclick="cancelVoiceRecording()" title="Discard Recording">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                    <span>Cancel</span>
+                                </button>
+                                <button type="button" class="voice-rec-btn send" onclick="stopAndSendVoiceRecording()" title="Send Voice Message">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                    <span>Send</span>
+                                </button>
+                            </div>
+                        </div>
 
                         <!-- Subtle Bottom Notice -->
                         <div class="composer-meta-row">

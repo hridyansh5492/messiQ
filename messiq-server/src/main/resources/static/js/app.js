@@ -951,6 +951,9 @@ function renderMessagesCards(items) {
         let previewText = 'Started a conversation';
         if (lastMsg) {
             if (lastMsg.type === 'IMAGE') previewText = '📷 Photo attachment';
+            else if (lastMsg.type === 'AUDIO' || (lastMsg.content && lastMsg.content.startsWith('[VOICE_NOTE]'))) {
+                previewText = '🎤 Voice message' + (lastMsg.fileName ? ` (${lastMsg.fileName})` : '');
+            }
             else if (lastMsg.content) previewText = lastMsg.content;
         }
         const timeStr = lastMsg ? formatTime(lastMsg.timestamp) : '';
@@ -1015,6 +1018,9 @@ function renderPinnedCards(items) {
         let previewText = 'Pinned conversation';
         if (lastMsg) {
             if (lastMsg.type === 'IMAGE') previewText = '📷 Photo attachment';
+            else if (lastMsg.type === 'AUDIO' || (lastMsg.content && lastMsg.content.startsWith('[VOICE_NOTE]'))) {
+                previewText = '🎤 Voice message' + (lastMsg.fileName ? ` (${lastMsg.fileName})` : '');
+            }
             else if (lastMsg.content) previewText = lastMsg.content;
         }
         const timeStr = lastMsg ? formatTime(lastMsg.timestamp) : '';
@@ -1262,11 +1268,16 @@ function appendMessageBubble(msg) {
     } 
     // 2. Audio Voice Note
     else if (msg.type === 'AUDIO' || (msg.content && msg.content.startsWith('[VOICE_NOTE]'))) {
+        const audioId = 'aud_' + Math.random().toString(36).substring(2, 9);
+        const duration = msg.fileName || '0:05';
+        const audioSrc = msg.mediaUrl || '';
         row.innerHTML = `
             <div style="display:flex; align-items:center;">
-                <div class="audio-capsule">
-                    <button type="button" class="audio-play-btn"><i class="fa-solid fa-play"></i></button>
-                    <div class="audio-waveform">
+                <div class="audio-capsule" id="capsule_${audioId}">
+                    <button type="button" class="audio-play-btn" onclick="toggleVoiceAudioPlayback('${audioId}', '${audioSrc}', '${escapeHtml(duration)}')" title="Play / Pause Voice Note">
+                        <i class="fa-solid fa-play" id="icon_${audioId}"></i>
+                    </button>
+                    <div class="audio-waveform" id="wave_${audioId}">
                         <span style="height:6px"></span><span style="height:12px"></span>
                         <span style="height:18px"></span><span style="height:14px"></span>
                         <span style="height:10px"></span><span style="height:16px"></span>
@@ -1275,9 +1286,10 @@ function appendMessageBubble(msg) {
                         <span style="height:7px"></span><span style="height:15px"></span>
                         <span style="height:12px"></span><span style="height:6px"></span>
                     </div>
-                    <span class="audio-duration">0:24</span>
+                    <span class="audio-duration" id="dur_${audioId}">${escapeHtml(duration)}</span>
+                    ${audioSrc ? `<audio id="${audioId}" src="${audioSrc}" preload="auto" onended="onVoiceAudioEnded('${audioId}')"></audio>` : ''}
                 </div>
-                <span class="reaction-badge">🤍 1</span>
+                <span class="reaction-badge" onclick="reactToMessage(this)" title="React with Heart">🤍 1</span>
             </div>
             <div class="msg-meta">
                 <span>${timeStr}</span>
@@ -1427,14 +1439,171 @@ function clearMediaAttachment() {
     document.getElementById('mediaPreviewBar').classList.add('hidden');
 }
 
-function insertSampleEmoji() {
-    const input = document.getElementById('chatMessageInput');
-    input.value += ' 🌿';
-    input.focus();
+// =========================================================
+// EMOJI QUICK PICKER ENGINE (POPULAR EMOJIS: ❤️ 😂 😭 😊 🔥)
+// =========================================================
+
+function toggleEmojiPicker(e) {
+    if (e) e.stopPropagation();
+    const bar = document.getElementById('emojiPickerBar');
+    if (!bar) return;
+    bar.classList.toggle('hidden');
 }
 
-function sendSampleVoiceNote() {
-    if (!activePeer || !currentUser) return;
+function closeEmojiPicker() {
+    const bar = document.getElementById('emojiPickerBar');
+    if (bar) bar.classList.add('hidden');
+}
+
+function insertEmoji(emojiChar) {
+    const input = document.getElementById('chatMessageInput');
+    if (!input) return;
+
+    const start = input.selectionStart != null ? input.selectionStart : input.value.length;
+    const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+    const currentVal = input.value;
+
+    input.value = currentVal.substring(0, start) + emojiChar + currentVal.substring(end);
+    input.focus();
+    input.selectionStart = input.selectionEnd = start + emojiChar.length;
+
+    handleTyping();
+    closeEmojiPicker();
+}
+
+// =========================================================
+// PROPER VOICE MESSAGE RECORDING & AUDIO PLAYBACK ENGINE
+// =========================================================
+
+let mediaRecorder = null;
+let audioChunks = [];
+let voiceRecInterval = null;
+let voiceRecSeconds = 0;
+let voiceAudioStream = null;
+let currentlyPlayingAudioId = null;
+let currentSynthStopCallback = null;
+
+async function startVoiceRecording() {
+    if (!activePeer || !currentUser) {
+        showToast('Select a conversation to record a voice message');
+        return;
+    }
+
+    voiceRecSeconds = 0;
+    audioChunks = [];
+    const timerEl = document.getElementById('voiceRecTimer');
+    if (timerEl) timerEl.textContent = '0:00';
+
+    const form = document.getElementById('chatForm');
+    const overlay = document.getElementById('voiceRecordingOverlay');
+    if (form) form.classList.add('hidden');
+    if (overlay) overlay.classList.remove('hidden');
+
+    // Request actual microphone if available
+    try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            voiceAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(voiceAudioStream);
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
+            mediaRecorder.start(250);
+        } else {
+            mediaRecorder = null;
+        }
+    } catch (err) {
+        console.warn('Microphone hardware/permission unavailable; running in demo simulation:', err);
+        mediaRecorder = null;
+        showToast('Microphone not detected, recording voice message in demo mode');
+    }
+
+    // Live timer counter
+    clearInterval(voiceRecInterval);
+    voiceRecInterval = setInterval(() => {
+        voiceRecSeconds++;
+        const mins = Math.floor(voiceRecSeconds / 60);
+        const secs = voiceRecSeconds % 60;
+        if (timerEl) {
+            timerEl.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+    }, 1000);
+}
+
+function cancelVoiceRecording() {
+    clearInterval(voiceRecInterval);
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.stop(); } catch (e) {}
+    }
+    if (voiceAudioStream) {
+        voiceAudioStream.getTracks().forEach(t => t.stop());
+        voiceAudioStream = null;
+    }
+    mediaRecorder = null;
+    audioChunks = [];
+
+    const form = document.getElementById('chatForm');
+    const overlay = document.getElementById('voiceRecordingOverlay');
+    if (form) form.classList.remove('hidden');
+    if (overlay) overlay.classList.add('hidden');
+
+    showToast('Voice recording canceled');
+}
+
+async function stopAndSendVoiceRecording() {
+    clearInterval(voiceRecInterval);
+
+    if (voiceRecSeconds < 1) {
+        showToast('Recording too short (minimum 1 second)');
+        cancelVoiceRecording();
+        return;
+    }
+
+    const durationStr = formatVoiceDuration(voiceRecSeconds);
+    const form = document.getElementById('chatForm');
+    const overlay = document.getElementById('voiceRecordingOverlay');
+    if (form) form.classList.remove('hidden');
+    if (overlay) overlay.classList.add('hidden');
+
+    let audioBlob = null;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try {
+            await new Promise(resolve => {
+                mediaRecorder.onstop = resolve;
+                mediaRecorder.stop();
+            });
+            if (audioChunks.length > 0) {
+                audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            }
+        } catch (e) {
+            console.warn('MediaRecorder stop error:', e);
+        }
+    }
+    if (voiceAudioStream) {
+        voiceAudioStream.getTracks().forEach(t => t.stop());
+        voiceAudioStream = null;
+    }
+
+    let mediaUrl = null;
+    if (audioBlob) {
+        try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+            const uploadRes = await fetch('/api/media/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) {
+                mediaUrl = uploadData.data.fileDownloadUri;
+            }
+        } catch (e) {
+            console.warn('Voice upload failed, using local Blob URL', e);
+            mediaUrl = URL.createObjectURL(audioBlob);
+        }
+    }
+
     const messagePayload = {
         senderId: currentUser.id,
         senderUsername: currentUser.username,
@@ -1442,15 +1611,170 @@ function sendSampleVoiceNote() {
         receiverUsername: activePeer.username,
         content: '[VOICE_NOTE]',
         type: 'AUDIO',
+        mediaUrl: mediaUrl,
+        fileName: durationStr,
+        fileSize: audioBlob ? audioBlob.size : 12400,
         status: 'SENT',
         timestamp: new Date().toISOString()
     };
 
     if (stompClient && isConnected) {
         stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(messagePayload));
+    } else {
+        await fetch('/api/messages/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(messagePayload)
+        });
     }
+
     appendMessageBubble(messagePayload);
     scrollFeedToBottom();
+    updateConversationInList(messagePayload);
+    showToast(`Voice message (${durationStr}) sent!`);
+}
+
+function formatVoiceDuration(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function toggleVoiceAudioPlayback(audioId, audioSrc, durationStr) {
+    const icon = document.getElementById(`icon_${audioId}`);
+    const wave = document.getElementById(`wave_${audioId}`);
+    const audioEl = document.getElementById(audioId);
+
+    // If another audio was playing, stop it first
+    if (currentlyPlayingAudioId && currentlyPlayingAudioId !== audioId) {
+        stopAnyPlayingVoiceNote();
+    }
+
+    // Case 1: Play actual recorded audio element
+    if (audioEl && audioSrc) {
+        if (audioEl.paused) {
+            audioEl.play().then(() => {
+                currentlyPlayingAudioId = audioId;
+                if (icon) icon.className = 'fa-solid fa-pause';
+                if (wave) wave.classList.add('playing');
+            }).catch(e => {
+                playSynthesizedVoiceTone(audioId, durationStr);
+            });
+        } else {
+            audioEl.pause();
+            if (icon) icon.className = 'fa-solid fa-play';
+            if (wave) wave.classList.remove('playing');
+            currentlyPlayingAudioId = null;
+        }
+        return;
+    }
+
+    // Case 2: Synthesized voice note audio playback
+    if (currentlyPlayingAudioId === audioId) {
+        stopAnyPlayingVoiceNote();
+        return;
+    }
+    playSynthesizedVoiceTone(audioId, durationStr);
+}
+
+function stopAnyPlayingVoiceNote() {
+    if (!currentlyPlayingAudioId) return;
+    const oldAudio = document.getElementById(currentlyPlayingAudioId);
+    if (oldAudio) {
+        try { oldAudio.pause(); oldAudio.currentTime = 0; } catch (e) {}
+    }
+    const oldIcon = document.getElementById(`icon_${currentlyPlayingAudioId}`);
+    const oldWave = document.getElementById(`wave_${currentlyPlayingAudioId}`);
+    if (oldIcon) oldIcon.className = 'fa-solid fa-play';
+    if (oldWave) oldWave.classList.remove('playing');
+    if (currentSynthStopCallback) {
+        try { currentSynthStopCallback(); } catch (e) {}
+        currentSynthStopCallback = null;
+    }
+    currentlyPlayingAudioId = null;
+}
+
+function onVoiceAudioEnded(audioId) {
+    const icon = document.getElementById(`icon_${audioId}`);
+    const wave = document.getElementById(`wave_${audioId}`);
+    if (icon) icon.className = 'fa-solid fa-play';
+    if (wave) wave.classList.remove('playing');
+    if (currentlyPlayingAudioId === audioId) {
+        currentlyPlayingAudioId = null;
+    }
+}
+
+function playSynthesizedVoiceTone(audioId, durationStr) {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+
+        const icon = document.getElementById(`icon_${audioId}`);
+        const wave = document.getElementById(`wave_${audioId}`);
+        if (icon) icon.className = 'fa-solid fa-pause';
+        if (wave) wave.classList.add('playing');
+        currentlyPlayingAudioId = audioId;
+
+        let sec = 4;
+        if (durationStr) {
+            const parts = durationStr.split(':');
+            if (parts.length === 2) {
+                sec = (parseInt(parts[0], 10) * 60) + parseInt(parts[1], 10);
+            }
+        }
+        if (sec <= 0) sec = 4;
+        sec = Math.min(sec, 8); // cap preview to 8s
+
+        const osc = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + (sec * 0.5));
+        osc.frequency.exponentialRampToValueAtTime(260, ctx.currentTime + sec);
+
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(440, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + sec);
+
+        osc.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc2.start();
+
+        const timer = setTimeout(() => {
+            onVoiceAudioEnded(audioId);
+            try { osc.stop(); osc2.stop(); } catch (e) {}
+        }, sec * 1000);
+
+        currentSynthStopCallback = () => {
+            clearTimeout(timer);
+            try { osc.stop(); osc2.stop(); } catch (e) {}
+        };
+    } catch (e) {
+        console.warn('Synth voice error:', e);
+        onVoiceAudioEnded(audioId);
+    }
+}
+
+function reactToMessage(badgeEl) {
+    if (badgeEl.textContent.includes('🤍')) {
+        badgeEl.innerHTML = '❤️ 1';
+        badgeEl.style.transform = 'scale(1.2)';
+        setTimeout(() => badgeEl.style.transform = 'scale(1)', 200);
+    } else if (badgeEl.textContent.includes('❤️')) {
+        badgeEl.innerHTML = '😂 1';
+    } else if (badgeEl.textContent.includes('😂')) {
+        badgeEl.innerHTML = '🔥 1';
+    } else {
+        badgeEl.innerHTML = '🤍 1';
+    }
 }
 
 // Typing Indicator Handling
@@ -1958,6 +2282,7 @@ function initGlobalKeyListeners() {
     // Escape key closes modals and popovers
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            closeEmojiPicker();
             closeProfilePopover();
             closeContactDetailsPane();
             closeSettingsModal();
@@ -1965,12 +2290,19 @@ function initGlobalKeyListeners() {
         }
     });
 
-    // Click outside listener for profile popover
+    // Click outside listener for profile popover & emoji picker
     document.addEventListener('click', (e) => {
         const popover = document.getElementById('profilePopover');
         if (popover && !popover.classList.contains('hidden')) {
             if (!popover.contains(e.target) && !e.target.closest('.rail-user-avatar') && !e.target.closest('.topbar-avatar')) {
                 closeProfilePopover();
+            }
+        }
+
+        const emojiBar = document.getElementById('emojiPickerBar');
+        if (emojiBar && !emojiBar.classList.contains('hidden')) {
+            if (!emojiBar.contains(e.target) && !e.target.closest('#emojiPickerBtn')) {
+                closeEmojiPicker();
             }
         }
     });
