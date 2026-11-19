@@ -749,6 +749,180 @@ function isChatPinned(userId) {
 }
 
 // =========================================================
+// PINNED MESSAGE ENGINE (INDIVIDUAL MESSAGE PINNING)
+// =========================================================
+
+function getPinnedMessagesMap() {
+    if (!currentUser) return {};
+    try {
+        const stored = localStorage.getItem(`messiq_pinned_messages_${currentUser.id}`);
+        return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function getPinnedMessageForPeer(peerId) {
+    if (!peerId) return null;
+    const map = getPinnedMessagesMap();
+    return map[Number(peerId)] || null;
+}
+
+function savePinnedMessageForPeer(peerId, pinnedMsg) {
+    if (!currentUser || !peerId) return;
+    const map = getPinnedMessagesMap();
+    map[Number(peerId)] = pinnedMsg;
+    localStorage.setItem(`messiq_pinned_messages_${currentUser.id}`, JSON.stringify(map));
+}
+
+function removePinnedMessageForPeer(peerId) {
+    if (!currentUser || !peerId) return;
+    const map = getPinnedMessagesMap();
+    delete map[Number(peerId)];
+    localStorage.setItem(`messiq_pinned_messages_${currentUser.id}`, JSON.stringify(map));
+}
+
+function updatePinnedMessageBanner() {
+    const banner = document.getElementById('pinnedMessageBanner');
+    const textEl = document.getElementById('pinnedBannerText');
+    if (!banner || !activePeer) {
+        if (banner) banner.classList.add('hidden');
+        return;
+    }
+
+    const pinned = getPinnedMessageForPeer(activePeer.id);
+    if (!pinned) {
+        banner.classList.add('hidden');
+        return;
+    }
+
+    let snippet = pinned.content || '';
+    if (pinned.type === 'IMAGE' || (pinned.mediaUrl && pinned.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i))) {
+        snippet = '📷 ' + (pinned.fileName || 'Photo attachment');
+    } else if (pinned.type === 'AUDIO' || (snippet && snippet.startsWith('[VOICE_NOTE]'))) {
+        snippet = '🎤 Voice message (' + (pinned.fileName || '0:05') + ')';
+    }
+    if (snippet.length > 55) {
+        snippet = snippet.substring(0, 52) + '...';
+    }
+
+    if (textEl) textEl.textContent = snippet || 'Pinned message';
+    banner.classList.remove('hidden');
+}
+
+function togglePinMessage(e, msgId) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (!currentUser || !activePeer) return;
+
+    const pinned = getPinnedMessageForPeer(activePeer.id);
+    const msgIdNum = Number(msgId);
+
+    // If this message is already pinned, clicking it unpins it
+    if (pinned && Number(pinned.id) === msgIdNum) {
+        unpinCurrentMessage(e);
+        return;
+    }
+
+    // Find the message row in the DOM
+    const feed = document.getElementById('messageFeed');
+    const rowEl = feed ? feed.querySelector(`.msg-row[data-msg-id="${msgId}"]`) : null;
+    let content = '';
+    let type = 'CHAT';
+    let fileName = '';
+    let mediaUrl = '';
+
+    if (rowEl) {
+        const textSpan = rowEl.querySelector('.msg-bubble span');
+        if (textSpan) content = textSpan.textContent;
+        const img = rowEl.querySelector('.media-grid img');
+        if (img) {
+            type = 'IMAGE';
+            mediaUrl = img.src;
+        }
+        const audioCap = rowEl.querySelector('.audio-capsule');
+        if (audioCap) {
+            type = 'AUDIO';
+        }
+    }
+
+    const pinnedPayload = {
+        id: msgIdNum,
+        content: content,
+        type: type,
+        fileName: fileName,
+        mediaUrl: mediaUrl,
+        timestamp: new Date().toISOString()
+    };
+
+    savePinnedMessageForPeer(activePeer.id, pinnedPayload);
+    updatePinnedMessageBanner();
+
+    // Update active highlight / tag in the feed
+    if (feed) {
+        feed.querySelectorAll('.msg-pin-btn').forEach(btn => {
+            const isMatch = Number(btn.getAttribute('data-pin-id')) === msgIdNum;
+            btn.classList.toggle('pinned', isMatch);
+            btn.title = isMatch ? 'Unpin message' : 'Pin message';
+        });
+
+        feed.querySelectorAll('.pinned-bubble-tag').forEach(tag => tag.remove());
+        if (rowEl) {
+            const tag = document.createElement('div');
+            tag.className = 'pinned-bubble-tag';
+            tag.innerHTML = `<i class="fa-solid fa-thumbtack"></i> Pinned`;
+            rowEl.insertBefore(tag, rowEl.firstChild);
+        }
+    }
+
+    showToast('Message pinned to chat');
+}
+
+function jumpToPinnedMessage() {
+    if (!activePeer) return;
+    const pinned = getPinnedMessageForPeer(activePeer.id);
+    if (!pinned) return;
+
+    const feed = document.getElementById('messageFeed');
+    if (!feed) return;
+
+    const rowEl = feed.querySelector(`.msg-row[data-msg-id="${pinned.id}"]`);
+    if (rowEl) {
+        rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        rowEl.classList.remove('pulse-highlight');
+        void rowEl.offsetWidth; // force reflow
+        rowEl.classList.add('pulse-highlight');
+        setTimeout(() => rowEl.classList.remove('pulse-highlight'), 1800);
+    } else {
+        showToast('Pinned message is earlier in history');
+    }
+}
+
+function unpinCurrentMessage(e) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (!activePeer) return;
+
+    removePinnedMessageForPeer(activePeer.id);
+    updatePinnedMessageBanner();
+
+    const feed = document.getElementById('messageFeed');
+    if (feed) {
+        feed.querySelectorAll('.msg-pin-btn.pinned').forEach(btn => {
+            btn.classList.remove('pinned');
+            btn.title = 'Pin message';
+        });
+        feed.querySelectorAll('.pinned-bubble-tag').forEach(tag => tag.remove());
+    }
+
+    showToast('Message unpinned');
+}
+
+// =========================================================
 // PERSISTENT CLEARED CHATS (DELETER SIDE PERSISTENCE)
 // =========================================================
 
@@ -1319,6 +1493,7 @@ function selectConversationPeer(peer) {
     updateActiveHeaderStatus();
     updateActiveChatPinButton();
     updateContactDetailsContent();
+    updatePinnedMessageBanner();
 
     // Re-render sidebar so selected item is highlighted
     renderSidebarList();
@@ -1426,6 +1601,7 @@ async function loadMessageHistory() {
                         No messages yet.<br>Say hello to start the conversation!
                     </div>`;
             }
+            updatePinnedMessageBanner();
         }
     } catch (e) {
         feed.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">Failed to retrieve history.</div>`;
@@ -1467,6 +1643,15 @@ function appendMessageBubble(msg) {
     const isSent = msg.senderId === currentUser.id;
     const isRead = msg.status === 'READ';
 
+    const pinned = activePeer ? getPinnedMessageForPeer(activePeer.id) : null;
+    const isThisMsgPinned = pinned && msg.id && Number(pinned.id) === Number(msg.id);
+    const pinBtnHtml = msg.id 
+        ? `<button type="button" class="msg-pin-btn ${isThisMsgPinned ? 'pinned' : ''}" data-pin-id="${msg.id}" onclick="togglePinMessage(event, ${msg.id})" title="${isThisMsgPinned ? 'Unpin message' : 'Pin message'}"><i class="fa-solid fa-thumbtack"></i></button>`
+        : '';
+    const pinnedTagHtml = isThisMsgPinned
+        ? `<div class="pinned-bubble-tag"><i class="fa-solid fa-thumbtack"></i> Pinned</div>`
+        : '';
+
     const row = document.createElement('div');
     row.className = `msg-row ${isSent ? 'outgoing' : 'incoming'}`;
     if (msg.id) {
@@ -1483,6 +1668,7 @@ function appendMessageBubble(msg) {
     // 1. Photo / Media Card (matching Figma Casa Olivo shoot layout)
     if (msg.mediaUrl && (msg.type === 'IMAGE' || msg.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i))) {
         row.innerHTML = `
+            ${pinnedTagHtml}
             <div class="media-card">
                 ${msg.content ? `<div class="media-card-caption">${escapeHtml(msg.content)}</div>` : ''}
                 <div class="media-grid">
@@ -1496,6 +1682,7 @@ function appendMessageBubble(msg) {
             <div class="msg-meta">
                 <span>${timeStr}</span>
                 ${readCheckHtml}
+                ${pinBtnHtml}
             </div>
         `;
     } 
@@ -1505,6 +1692,7 @@ function appendMessageBubble(msg) {
         const duration = msg.fileName || '0:05';
         const audioSrc = msg.mediaUrl || '';
         row.innerHTML = `
+            ${pinnedTagHtml}
             <div style="display:flex; align-items:center;">
                 <div class="audio-capsule" id="capsule_${audioId}">
                     <button type="button" class="audio-play-btn" onclick="toggleVoiceAudioPlayback('${audioId}', '${audioSrc}', '${escapeHtml(duration)}')" title="Play / Pause Voice Note">
@@ -1527,12 +1715,14 @@ function appendMessageBubble(msg) {
             <div class="msg-meta">
                 <span>${timeStr}</span>
                 ${readCheckHtml}
+                ${pinBtnHtml}
             </div>
         `;
     }
     // 3. Regular Text Message Bubble
     else {
         row.innerHTML = `
+            ${pinnedTagHtml}
             <div class="msg-bubble">
                 ${msg.mediaUrl ? `<div style="margin-bottom:6px;"><a href="${msg.mediaUrl}" target="_blank" style="color:#60a5fa; text-decoration:none;"><i class="fa-solid fa-paperclip"></i> ${escapeHtml(msg.fileName || 'Attachment')}</a></div>` : ''}
                 <span>${escapeHtml(msg.content || '')}</span>
@@ -1540,6 +1730,7 @@ function appendMessageBubble(msg) {
             <div class="msg-meta">
                 <span>${timeStr}</span>
                 ${readCheckHtml}
+                ${pinBtnHtml}
             </div>
         `;
     }
@@ -2537,6 +2728,10 @@ function clearCurrentChatAction() {
                 Chat cleared. Say hello to start fresh!
             </div>`;
     }
+
+    // Clear any pinned message for this conversation
+    removePinnedMessageForPeer(activePeer.id);
+    updatePinnedMessageBanner();
 
     // Update conversation in memory to clear last message preview and unread count
     const existing = recentConversations.find(c => c.user && c.user.id === activePeer.id);

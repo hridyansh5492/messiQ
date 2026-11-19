@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>messiQ - Real-Time Messenger</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="alternate icon" href="favicon.ico">
     <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1050,7 +1054,22 @@
                         </div>
                     </header>
 
-                    <!-- Chat Scroll Feed (Pinned moodboard banner removed) -->
+                    <!-- Pinned Message Banner (WhatsApp/Telegram style) -->
+                    <div id="pinnedMessageBanner" class="pinned-banner hidden" onclick="jumpToPinnedMessage()">
+                        <div class="pinned-content">
+                            <i class="fa-solid fa-thumbtack pinned-pin"></i>
+                            <span class="pinned-label">Pinned Message:</span>
+                            <span id="pinnedBannerText" class="pinned-text"></span>
+                        </div>
+                        <div class="pinned-actions">
+                            <span class="pinned-jump-hint" title="Jump to message"><i class="fa-solid fa-arrow-down-long"></i> Jump</span>
+                            <button type="button" class="unpin-msg-btn" onclick="unpinCurrentMessage(event)" title="Unpin message">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Scroll Feed -->
                     <div id="messageFeed" class="message-feed">
                         <div class="date-divider">
                             <span>Today, October 29</span>

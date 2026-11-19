@@ -852,41 +852,161 @@ body.theme-dark .filter-chip:hover:not(.active) {
     background-color: var(--chip-bg);
 }
 
-/* Pinned Banner */
+/* Pinned Message Banner (WhatsApp/Telegram style) */
 .pinned-banner {
     background-color: var(--pinned-bg);
     color: var(--pinned-text);
-    padding: 8px 24px;
+    padding: 9px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: 12.5px;
     cursor: pointer;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid var(--sidebar-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: background-color 0.2s ease, filter 0.2s ease;
+    user-select: none;
+    z-index: 10;
+}
+
+.pinned-banner:hover {
+    filter: brightness(0.97);
+}
+
+body.theme-dark .pinned-banner:hover {
+    filter: brightness(1.1);
 }
 
 .pinned-content {
     display: flex;
     align-items: center;
     gap: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 78%;
 }
 
 .pinned-pin {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--pinned-icon);
 }
 
 .pinned-label {
     font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--online-green);
+    flex-shrink: 0;
 }
 
 .pinned-text {
     font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.pinned-arrow {
+.pinned-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.pinned-jump-hint {
     font-size: 11px;
+    font-weight: 600;
+    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 0.2s ease;
+}
+
+.pinned-banner:hover .pinned-jump-hint {
+    opacity: 1;
+    color: var(--online-green);
+}
+
+.unpin-msg-btn {
+    background: transparent;
+    border: none;
+    color: var(--pinned-text);
     opacity: 0.7;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: var(--transition);
+}
+
+.unpin-msg-btn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.08);
+    color: #ef4444;
+}
+
+/* Pinned Message Tag & Pin Button on Message Row */
+.msg-pin-btn {
+    background: transparent;
+    border: none;
+    color: var(--contact-preview);
+    cursor: pointer;
+    font-size: 11px;
+    opacity: 0;
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: opacity 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.msg-row:hover .msg-pin-btn,
+.msg-pin-btn.pinned {
+    opacity: 0.85;
+}
+
+.msg-pin-btn:hover {
+    opacity: 1;
+    color: var(--online-green);
+    transform: scale(1.15);
+}
+
+.msg-pin-btn.pinned {
+    color: var(--online-green) !important;
+}
+
+.pinned-bubble-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--online-green);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.msg-row.outgoing .pinned-bubble-tag {
+    align-self: flex-end;
+}
+
+/* Pulse Highlight when jumping to pinned message */
+@keyframes pulseHighlight {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+    50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.2); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.msg-row.pulse-highlight {
+    animation: pulseHighlight 1.6s ease-out;
 }
 
 /* Message Feed */
