@@ -33,12 +33,7 @@ public class ChatWebSocketController {
      */
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload ChatMessageDTO chatMessage) {
-        ChatMessageDTO saved = messageService.sendMessage(chatMessage);
-
-        // Also broadcast to the active conversation channel if clients subscribe to it
-        String conversationKey = Math.min(chatMessage.getSenderId(), chatMessage.getReceiverId()) + "." +
-                                 Math.max(chatMessage.getSenderId(), chatMessage.getReceiverId());
-        messagingTemplate.convertAndSend("/topic/messages." + conversationKey, saved);
+        messageService.sendMessage(chatMessage);
     }
 
     /**

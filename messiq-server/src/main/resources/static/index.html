@@ -548,8 +548,8 @@
             <nav class="nav-rail">
                 <div class="rail-top">
                     <button class="rail-btn" title="Dashboard / Apps"><i class="fa-solid fa-grip"></i></button>
-                    <button class="rail-btn active" title="Messages"><i class="fa-solid fa-comment"></i></button>
-                    <button class="rail-btn" title="Contacts" onclick="switchSidebarTab('all')"><i class="fa-solid fa-user-group"></i></button>
+                    <button id="railBtnMessages" class="rail-btn active" title="Messages" onclick="switchToMessagesView()"><i class="fa-solid fa-comment"></i></button>
+                    <button id="railBtnContacts" class="rail-btn" title="Contacts (All Users)" onclick="switchToContactsView()"><i class="fa-solid fa-user-group"></i></button>
                     <button class="rail-btn" title="Bookmarks"><i class="fa-regular fa-bookmark"></i></button>
                     <button class="rail-btn" title="Notifications"><i class="fa-regular fa-bell"></i></button>
                 </div>
@@ -574,10 +574,10 @@
                 <div class="messages-header">
                     <div class="title-row">
                         <div class="messages-heading">
-                            <h2>Messages</h2>
-                            <span id="conversationCountBadge" class="count-pill">5</span>
+                            <h2 id="sidebarTitle">Messages</h2>
+                            <span id="conversationCountBadge" class="count-pill">0</span>
                         </div>
-                        <button class="icon-action-btn" title="Compose New Message" onclick="openNewMessageModal()">
+                        <button class="icon-action-btn" title="Start New Chat (All Users)" onclick="switchToContactsView()">
                             <i class="fa-regular fa-pen-to-square"></i>
                         </button>
                     </div>
@@ -585,24 +585,28 @@
                     <!-- Search Input Box -->
                     <div class="search-input-pill">
                         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                        <input type="text" id="userSearchInput" placeholder="Search messages..." oninput="handleSearch(this.value)">
+                        <input type="text" id="userSearchInput" placeholder="Search..." oninput="handleSearch(this.value)">
                         <span class="cmd-k-badge">⌘ K</span>
                         <button id="clearSearchBtn" class="clear-search-btn hidden" onclick="clearSearch()">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
 
-                    <!-- Filter Chips / Tabs -->
-                    <div class="filter-chips">
-                        <button id="chipAll" class="filter-chip active" onclick="switchSidebarTab('conversations')">All messages</button>
-                        <button id="chipUnread" class="filter-chip" onclick="filterUnreadMessages()">Unread</button>
-                        <button id="chipDirectory" class="filter-chip" onclick="switchSidebarTab('all')">Directory</button>
+                    <!-- Filter Chips / Tabs (Messages Mode - Directory removed) -->
+                    <div id="messagesFilterRow" class="filter-chips">
+                        <button id="chipAll" class="filter-chip active" onclick="switchMessagesTab('conversations')">All messages</button>
+                        <button id="chipUnread" class="filter-chip" onclick="switchMessagesTab('unread')">Unread</button>
+                    </div>
+
+                    <!-- Filter Chips / Tabs (Contacts Mode - All users on platform) -->
+                    <div id="contactsFilterRow" class="filter-chips hidden">
+                        <button id="chipAllContacts" class="filter-chip active" onclick="switchContactsTab('all')">All Users</button>
+                        <button id="chipOnlineContacts" class="filter-chip" onclick="switchContactsTab('online')">Online Now</button>
                     </div>
 
                     <!-- Section Header -->
                     <div class="section-label-row">
-                        <span class="section-label">RECENT</span>
-                        <button class="filter-icon-btn" title="Sort & Filter"><i class="fa-solid fa-arrow-down-short-wide"></i></button>
+                        <span id="sectionLabel" class="section-label">RECENT CONVERSATIONS</span>
                     </div>
                 </div>
 
@@ -625,14 +629,24 @@
             <!-- 3. MAIN CHAT AREA (Celadon / Warm Theme Canvas) -->
             <main class="chat-canvas">
                 
-                <!-- Welcome / Empty State Screen -->
+                <!-- Welcome / Empty State Screen (Default when no chat is selected) -->
                 <div id="chatEmptyState" class="chat-empty-state">
                     <div class="empty-state-card">
                         <div class="empty-icon-circle">
                             <i class="fa-solid fa-comments"></i>
                         </div>
-                        <h2>messiQ Real-Time Messenger</h2>
-                        <p>Select any conversation from the list to start messaging with live WebSocket presence, typing indicators, and instant photo sharing.</p>
+                        <h2>Select a person to chat or view previous chats</h2>
+                        <p>Choose an ongoing conversation from the sidebar or click <strong>Contacts</strong> to browse all users on the platform.</p>
+                        <div class="empty-actions-row">
+                            <button type="button" class="empty-action-btn primary" onclick="switchToContactsView()">
+                                <i class="fa-solid fa-user-group"></i>
+                                <span>Browse All Users</span>
+                            </button>
+                            <button type="button" class="empty-action-btn secondary" onclick="switchToMessagesView()">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                <span>View Recent Chats</span>
+                            </button>
+                        </div>
                         <div class="empty-feature-pills">
                             <span><i class="fa-solid fa-bolt"></i> Real-time WebSocket</span>
                             <span><i class="fa-solid fa-image"></i> Photo Sharing</span>
@@ -652,8 +666,8 @@
                                 <span id="activeTargetStatusDot" class="status-indicator-dot online"></span>
                             </div>
                             <div class="peer-details">
-                                <h3 id="activeTargetName" class="peer-name">Maya Chen</h3>
-                                <p id="activeTargetStatusText" class="peer-status">Online now • Photographer, good friend</p>
+                                <h3 id="activeTargetName" class="peer-name"></h3>
+                                <p id="activeTargetStatusText" class="peer-status"></p>
                             </div>
                         </div>
 
@@ -666,17 +680,7 @@
                         </div>
                     </header>
 
-                    <!-- Pinned Story / Announcement Banner -->
-                    <div class="pinned-banner">
-                        <div class="pinned-content">
-                            <i class="fa-solid fa-thumbtack pinned-pin"></i>
-                            <span class="pinned-label">Pinned</span>
-                            <span class="pinned-text">A slower kind of story — our November moodboard</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right pinned-arrow"></i>
-                    </div>
-
-                    <!-- Chat Scroll Feed -->
+                    <!-- Chat Scroll Feed (Pinned moodboard banner removed) -->
                     <div id="messageFeed" class="message-feed">
                         <div class="date-divider">
                             <span>Today, October 29</span>

@@ -2571,3 +2571,67 @@ body.theme-dark ::-webkit-scrollbar-thumb {
     .mockup-body { height: 280px; }
     .mockup-sidebar { display: none; }
 }
+
+/* Empty State Actions & Contact Badges */
+.empty-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 20px 0 16px;
+    flex-wrap: wrap;
+}
+
+.empty-action-btn {
+    padding: 10px 18px;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+}
+
+.empty-action-btn.primary {
+    background-color: var(--composer-send-bg);
+    color: var(--composer-send-color);
+    border: none;
+    box-shadow: var(--shadow-soft);
+}
+
+.empty-action-btn.primary:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+.empty-action-btn.secondary {
+    background-color: var(--composer-card-bg);
+    border: 1px solid var(--sidebar-border);
+    color: var(--contact-name);
+}
+
+.empty-action-btn.secondary:hover {
+    background-color: var(--bg-search);
+    transform: translateY(-1px);
+}
+
+.contact-badge-pill {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    text-transform: uppercase;
+}
+
+.contact-badge-pill.online {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: var(--online-green);
+}
+
+.contact-badge-pill.offline {
+    background-color: var(--chip-bg);
+    color: var(--composer-meta-text);
+}

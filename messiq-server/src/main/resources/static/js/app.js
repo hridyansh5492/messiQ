@@ -23,7 +23,9 @@ let activeSubscription = null;
 let activeTypingSubscription = null;
 let pendingMediaFile = null;
 let typingTimeout = null;
-let currentSidebarTab = 'conversations'; // 'conversations', 'unread', 'all'
+let currentView = 'messages'; // 'messages' or 'contacts'
+let currentMessagesFilter = 'conversations'; // 'conversations' or 'unread'
+let currentContactsFilter = 'all'; // 'all' or 'online'
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
@@ -376,33 +378,58 @@ function handleLogout() {
 // =========================================================
 
 function connectWebSocket() {
+    if (!currentUser) return;
+
     const topWsDot = document.getElementById('topWsDot');
     const topWsText = document.getElementById('topWsText');
-    topWsDot.className = 'status-indicator-dot offline';
-    topWsText.textContent = 'Connecting...';
+    if (topWsDot) topWsDot.className = 'status-indicator-dot offline';
+    if (topWsText) topWsText.textContent = 'Connecting...';
 
-    const socket = new SockJS('/ws');
+    // Pass credentials in query params for Principal authentication
+    const socket = new SockJS(`/ws?userId=${currentUser.id}&username=${encodeURIComponent(currentUser.username)}`);
     stompClient = Stomp.over(socket);
-    stompClient.debug = null; // suppress noisy frame logs
+    stompClient.debug = null; // suppress frame logs
 
-    stompClient.connect({}, (frame) => {
+    stompClient.connect({
+        username: currentUser.username,
+        userId: currentUser.id
+    }, (frame) => {
         isConnected = true;
-        topWsDot.className = 'status-indicator-dot online';
-        topWsText.textContent = 'All systems connected';
+        if (topWsDot) topWsDot.className = 'status-indicator-dot online';
+        if (topWsText) topWsText.textContent = 'All systems connected';
 
         // 1. Subscribe to presence broadcasts (Algorithm 5)
         stompClient.subscribe('/topic/status', (msg) => {
-            const statusUpdate = JSON.parse(msg.body);
-            handlePresenceUpdate(statusUpdate);
+            try {
+                const statusUpdate = JSON.parse(msg.body);
+                handlePresenceUpdate(statusUpdate);
+            } catch (e) {}
         });
 
-        // 2. Subscribe to user direct messages queue
+        // 2. Personal real-time direct message channel (Guaranteed instantaneous delivery)
+        stompClient.subscribe(`/topic/user.${currentUser.id}`, (msg) => {
+            try {
+                const chatMessage = JSON.parse(msg.body);
+                handleIncomingMessage(chatMessage);
+            } catch (e) {
+                console.error('Failed to parse incoming direct message', e);
+            }
+        });
+
+        // 3. User direct queue fallback (Spring UserDestination)
         stompClient.subscribe('/user/queue/messages', (msg) => {
-            const chatMessage = JSON.parse(msg.body);
-            handleIncomingMessage(chatMessage);
+            try {
+                const chatMessage = JSON.parse(msg.body);
+                handleIncomingMessage(chatMessage);
+            } catch (e) {}
         });
 
-        // 3. Broadcast current user is Online (Algorithm 5)
+        // 4. If a conversation is already open, subscribe immediately
+        if (activePeer) {
+            subscribeToConversationChannels();
+        }
+
+        // 5. Broadcast that current user is ONLINE
         stompClient.send('/app/user.status', {}, JSON.stringify({
             userId: currentUser.id,
             username: currentUser.username,
@@ -410,8 +437,8 @@ function connectWebSocket() {
         }));
     }, (error) => {
         isConnected = false;
-        topWsDot.className = 'status-indicator-dot offline';
-        topWsText.textContent = 'Disconnected';
+        if (topWsDot) topWsDot.className = 'status-indicator-dot offline';
+        if (topWsText) topWsText.textContent = 'Disconnected';
         setTimeout(connectWebSocket, 4000);
     });
 }
@@ -420,31 +447,94 @@ function connectWebSocket() {
  * Algorithm 5 - Handle Live Presence Updates
  */
 function handlePresenceUpdate(statusUpdate) {
+    if (!statusUpdate || !statusUpdate.userId) return;
+
     if (activePeer && activePeer.id === statusUpdate.userId) {
         activePeer.status = statusUpdate.status;
         updateActiveHeaderStatus();
     }
 
-    const found = allUsers.find(u => u.id === statusUpdate.userId);
-    if (found) {
-        found.status = statusUpdate.status;
+    const foundUser = allUsers.find(u => u.id === statusUpdate.userId);
+    if (foundUser) {
+        foundUser.status = statusUpdate.status;
+    }
+
+    const foundConv = recentConversations.find(c => c.user && c.user.id === statusUpdate.userId);
+    if (foundConv && foundConv.user) {
+        foundConv.user.status = statusUpdate.status;
     }
 
     renderSidebarList();
 }
 
+/**
+ * Instantaneous real-time message handler without page refresh
+ */
 function handleIncomingMessage(chatMessage) {
-    if (activePeer && (chatMessage.senderId === activePeer.id || chatMessage.receiverId === activePeer.id)) {
-        appendMessageBubble(chatMessage);
-        scrollFeedToBottom();
-        fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${activePeer.id}`, { method: 'POST' });
+    if (!currentUser) return;
+
+    // Check if message belongs to the currently active conversation
+    const isCurrentActive = activePeer && (chatMessage.senderId === activePeer.id || chatMessage.receiverId === activePeer.id);
+
+    if (isCurrentActive) {
+        // If message was sent by the peer, append it directly to the active chat feed
+        if (chatMessage.senderId === activePeer.id) {
+            appendMessageBubble(chatMessage);
+            scrollFeedToBottom();
+            fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${activePeer.id}`, { method: 'POST' });
+        }
+    }
+
+    // Always update sidebar conversations list in real time
+    updateConversationInList(chatMessage);
+}
+
+/**
+ * Update conversations list in memory and re-render sidebar instantaneously
+ */
+function updateConversationInList(chatMessage) {
+    if (!currentUser) return;
+
+    const isFromMe = chatMessage.senderId === currentUser.id;
+    const otherUserId = isFromMe ? chatMessage.receiverId : chatMessage.senderId;
+    const otherUsername = isFromMe ? chatMessage.receiverUsername : chatMessage.senderUsername;
+
+    let convIndex = recentConversations.findIndex(c => c.user && c.user.id === otherUserId);
+
+    if (convIndex >= 0) {
+        const conv = recentConversations[convIndex];
+        conv.lastMessage = chatMessage;
+        if (!isFromMe && (!activePeer || activePeer.id !== otherUserId)) {
+            conv.unreadCount = (conv.unreadCount || 0) + 1;
+        } else if (activePeer && activePeer.id === otherUserId) {
+            conv.unreadCount = 0;
+        }
+        // Move to the top of recent conversations
+        recentConversations.splice(convIndex, 1);
+        recentConversations.unshift(conv);
     } else {
-        loadConversationsList();
+        const foundUser = allUsers.find(u => u.id === otherUserId) || {
+            id: otherUserId,
+            username: otherUsername,
+            displayName: otherUsername,
+            avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${otherUsername}`,
+            status: 'ONLINE'
+        };
+        recentConversations.unshift({
+            user: foundUser,
+            lastMessage: chatMessage,
+            unreadCount: (!isFromMe && (!activePeer || activePeer.id !== otherUserId)) ? 1 : 0
+        });
+    }
+
+    updateSidebarCount();
+    if (currentView === 'messages') {
+        renderSidebarList();
     }
 }
 
 // =========================================================
-// DASHBOARD & MESSAGING FLOW
+// DASHBOARD & NAVIGATION FLOW
 // =========================================================
 
 function initMessengerDashboard() {
@@ -454,42 +544,103 @@ function initMessengerDashboard() {
     document.getElementById('topbarUserAvatar').src = avatarUrl;
     document.getElementById('railUserAvatar').src = avatarUrl;
 
+    // DO NOT open any default chat! Start with clean empty state
+    activePeer = null;
+    document.getElementById('chatActiveContainer').classList.add('hidden');
+    document.getElementById('chatEmptyState').classList.remove('hidden');
+
     connectWebSocket();
     loadConversationsList();
     loadDirectoryList();
+    switchToMessagesView();
 }
 
-function switchSidebarTab(tab) {
-    currentSidebarTab = tab;
-    document.getElementById('chipAll').classList.toggle('active', tab === 'conversations');
-    document.getElementById('chipUnread').classList.toggle('active', tab === 'unread');
-    document.getElementById('chipDirectory').classList.toggle('active', tab === 'all');
+function switchToMessagesView() {
+    currentView = 'messages';
+    const railMsg = document.getElementById('railBtnMessages');
+    const railContacts = document.getElementById('railBtnContacts');
+    if (railMsg) railMsg.classList.add('active');
+    if (railContacts) railContacts.classList.remove('active');
+
+    const title = document.getElementById('sidebarTitle');
+    const label = document.getElementById('sectionLabel');
+    const searchInput = document.getElementById('userSearchInput');
+    const msgFilter = document.getElementById('messagesFilterRow');
+    const contactsFilter = document.getElementById('contactsFilterRow');
+
+    if (title) title.textContent = 'Messages';
+    if (label) label.textContent = 'RECENT CONVERSATIONS';
+    if (searchInput) searchInput.placeholder = 'Search messages (⌘ K)...';
+    if (msgFilter) msgFilter.classList.remove('hidden');
+    if (contactsFilter) contactsFilter.classList.add('hidden');
+
+    updateSidebarCount();
     renderSidebarList();
 }
 
-function filterUnreadMessages() {
-    switchSidebarTab('unread');
+function switchToContactsView() {
+    currentView = 'contacts';
+    const railMsg = document.getElementById('railBtnMessages');
+    const railContacts = document.getElementById('railBtnContacts');
+    if (railMsg) railMsg.classList.remove('active');
+    if (railContacts) railContacts.classList.add('active');
+
+    const title = document.getElementById('sidebarTitle');
+    const label = document.getElementById('sectionLabel');
+    const searchInput = document.getElementById('userSearchInput');
+    const msgFilter = document.getElementById('messagesFilterRow');
+    const contactsFilter = document.getElementById('contactsFilterRow');
+
+    if (title) title.textContent = 'Contacts';
+    if (label) label.textContent = 'ALL REGISTERED USERS';
+    if (searchInput) searchInput.placeholder = 'Search contacts or @handle...';
+    if (msgFilter) msgFilter.classList.add('hidden');
+    if (contactsFilter) contactsFilter.classList.remove('hidden');
+
+    updateSidebarCount();
+    renderSidebarList();
 }
 
-function openNewMessageModal() {
-    switchSidebarTab('all');
-    document.getElementById('userSearchInput').focus();
+function switchMessagesTab(tab) {
+    currentMessagesFilter = tab;
+    const chipAll = document.getElementById('chipAll');
+    const chipUnread = document.getElementById('chipUnread');
+    if (chipAll) chipAll.classList.toggle('active', tab === 'conversations');
+    if (chipUnread) chipUnread.classList.toggle('active', tab === 'unread');
+    renderSidebarList();
+}
+
+function switchContactsTab(tab) {
+    currentContactsFilter = tab;
+    const chipAllContacts = document.getElementById('chipAllContacts');
+    const chipOnlineContacts = document.getElementById('chipOnlineContacts');
+    if (chipAllContacts) chipAllContacts.classList.toggle('active', tab === 'all');
+    if (chipOnlineContacts) chipOnlineContacts.classList.toggle('active', tab === 'online');
+    renderSidebarList();
+}
+
+function updateSidebarCount() {
+    const badge = document.getElementById('conversationCountBadge');
+    if (!badge) return;
+    if (currentView === 'messages') {
+        badge.textContent = recentConversations.length;
+    } else {
+        badge.textContent = allUsers.length;
+    }
 }
 
 async function loadConversationsList() {
+    if (!currentUser) return;
     try {
         const res = await fetch(`/api/messages/conversations?userId=${currentUser.id}`);
         const data = await res.json();
         if (data.success) {
             recentConversations = data.data;
-            document.getElementById('conversationCountBadge').textContent = recentConversations.length;
-            if (currentSidebarTab === 'conversations' || currentSidebarTab === 'unread') {
+            updateSidebarCount();
+            if (currentView === 'messages') {
                 renderSidebarList();
             }
-            // If no active peer is selected, auto-select first conversation
-            if (!activePeer && recentConversations.length > 0) {
-                selectConversationPeer(recentConversations[0].user);
-            }
+            // DO NOT auto-select Maya Chen or any peer on launch!
         }
     } catch (e) {
         console.error('Failed to load conversations', e);
@@ -497,12 +648,14 @@ async function loadConversationsList() {
 }
 
 async function loadDirectoryList() {
+    if (!currentUser) return;
     try {
         const res = await fetch(`/api/users?currentUserId=${currentUser.id}`);
         const data = await res.json();
         if (data.success) {
             allUsers = data.data;
-            if (currentSidebarTab === 'all') {
+            updateSidebarCount();
+            if (currentView === 'contacts') {
                 renderSidebarList();
             }
         }
@@ -511,106 +664,108 @@ async function loadDirectoryList() {
     }
 }
 
-async function handleSearch(query) {
+function handleSearch(query) {
     const clearBtn = document.getElementById('clearSearchBtn');
     if (!query || query.trim() === '') {
-        clearBtn.classList.add('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
         renderSidebarList();
         return;
     }
-    clearBtn.classList.remove('hidden');
+    if (clearBtn) clearBtn.classList.remove('hidden');
 
-    try {
-        const res = await fetch(`/api/users/search?query=${encodeURIComponent(query)}&currentUserId=${currentUser.id}`);
-        const data = await res.json();
-        if (data.success) {
-            renderCustomUserList(data.data);
-        }
-    } catch (e) {
-        console.error('Search failed', e);
+    const q = query.trim().toLowerCase();
+    if (currentView === 'messages') {
+        const filtered = recentConversations.filter(c => {
+            const name = (c.user.displayName || '').toLowerCase();
+            const username = (c.user.username || '').toLowerCase();
+            const lastMsg = c.lastMessage && c.lastMessage.content ? c.lastMessage.content.toLowerCase() : '';
+            return name.includes(q) || username.includes(q) || lastMsg.includes(q);
+        });
+        renderMessagesCards(filtered);
+    } else {
+        const filtered = allUsers.filter(u => {
+            const name = (u.displayName || '').toLowerCase();
+            const username = (u.username || '').toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            return name.includes(q) || username.includes(q) || email.includes(q);
+        });
+        renderContactsCards(filtered);
     }
 }
 
 function clearSearch() {
-    document.getElementById('userSearchInput').value = '';
-    document.getElementById('clearSearchBtn').classList.add('hidden');
+    const input = document.getElementById('userSearchInput');
+    if (input) input.value = '';
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
     renderSidebarList();
 }
 
 function renderSidebarList() {
-    const listContainer = document.getElementById('userList');
-    listContainer.innerHTML = '';
+    const searchInput = document.getElementById('userSearchInput');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    if (currentSidebarTab === 'conversations' || currentSidebarTab === 'unread') {
-        let itemsToRender = recentConversations;
-        if (currentSidebarTab === 'unread') {
-            itemsToRender = recentConversations.filter(item => item.unreadCount > 0);
+    if (currentView === 'messages') {
+        let items = recentConversations;
+        if (currentMessagesFilter === 'unread') {
+            items = items.filter(c => (c.unreadCount || 0) > 0);
         }
-
-        if (itemsToRender.length === 0) {
-            listContainer.innerHTML = `
-                <div style="text-align:center; padding:36px 14px; color:var(--composer-meta-text); font-size:12.5px;">
-                    <i class="fa-regular fa-comment-dots" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
-                    ${currentSidebarTab === 'unread' ? 'No unread messages.' : 'No conversations yet.<br>Click Directory to start a chat!'}
-                </div>`;
-            return;
+        if (query) {
+            items = items.filter(c => {
+                const name = (c.user.displayName || '').toLowerCase();
+                const username = (c.user.username || '').toLowerCase();
+                const lastMsg = c.lastMessage && c.lastMessage.content ? c.lastMessage.content.toLowerCase() : '';
+                return name.includes(query) || username.includes(query) || lastMsg.includes(query);
+            });
         }
-
-        itemsToRender.forEach(item => {
-            const peer = item.user;
-            const lastMsg = item.lastMessage;
-            const unread = item.unreadCount;
-            const isOnline = peer.status === 'ONLINE';
-
-            const card = document.createElement('div');
-            card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
-            card.onclick = () => selectConversationPeer(peer);
-
-            let previewText = 'Started a conversation';
-            if (lastMsg) {
-                if (lastMsg.type === 'IMAGE') previewText = '📷 Photo attachment';
-                else if (lastMsg.content) previewText = lastMsg.content;
-            }
-            const timeStr = lastMsg ? formatTime(lastMsg.timestamp) : '';
-
-            card.innerHTML = `
-                <div class="contact-avatar-wrapper">
-                    <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="contact-avatar">
-                    <span class="status-indicator-dot ${isOnline ? 'online' : 'offline'}"></span>
-                </div>
-                <div class="contact-info">
-                    <div class="contact-top">
-                        <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
-                        <span class="contact-time">${timeStr}</span>
-                    </div>
-                    <div class="contact-bottom">
-                        <span class="contact-preview">${escapeHtml(previewText)}</span>
-                        ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
-                    </div>
-                </div>
-            `;
-            listContainer.appendChild(card);
-        });
+        renderMessagesCards(items);
     } else {
-        // Directory Tab
-        if (allUsers.length === 0) {
-            listContainer.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--composer-meta-text); font-size:12.5px;">No other registered users.</div>`;
-            return;
+        let users = allUsers;
+        if (currentContactsFilter === 'online') {
+            users = users.filter(u => u.status === 'ONLINE');
         }
-        renderCustomUserList(allUsers);
+        if (query) {
+            users = users.filter(u => {
+                const name = (u.displayName || '').toLowerCase();
+                const username = (u.username || '').toLowerCase();
+                const email = (u.email || '').toLowerCase();
+                return name.includes(query) || username.includes(query) || email.includes(query);
+            });
+        }
+        renderContactsCards(users);
     }
 }
 
-function renderCustomUserList(users) {
+function renderMessagesCards(items) {
     const listContainer = document.getElementById('userList');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
 
-    users.forEach(peer => {
+    if (items.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align:center; padding:36px 14px; color:var(--composer-meta-text); font-size:12.5px;">
+                <i class="fa-regular fa-comment-dots" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
+                ${currentMessagesFilter === 'unread' ? 'No unread messages.' : 'No recent chats yet.<br><button onclick="switchToContactsView()" style="margin-top:12px; background:var(--composer-send-bg); color:var(--composer-send-color); border:none; padding:7px 16px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-user-group"></i> Browse All Users</button>'}
+            </div>`;
+        return;
+    }
+
+    items.forEach(item => {
+        const peer = item.user;
+        const lastMsg = item.lastMessage;
+        const unread = item.unreadCount || 0;
+        const isOnline = peer.status === 'ONLINE';
+
         const card = document.createElement('div');
         card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
         card.onclick = () => selectConversationPeer(peer);
 
-        const isOnline = peer.status === 'ONLINE';
+        let previewText = 'Started a conversation';
+        if (lastMsg) {
+            if (lastMsg.type === 'IMAGE') previewText = '📷 Photo attachment';
+            else if (lastMsg.content) previewText = lastMsg.content;
+        }
+        const timeStr = lastMsg ? formatTime(lastMsg.timestamp) : '';
 
         card.innerHTML = `
             <div class="contact-avatar-wrapper">
@@ -620,10 +775,50 @@ function renderCustomUserList(users) {
             <div class="contact-info">
                 <div class="contact-top">
                     <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
-                    <span class="contact-time" style="font-size:10px; text-transform:uppercase;">${peer.status || 'OFFLINE'}</span>
+                    <span class="contact-time">${timeStr}</span>
                 </div>
                 <div class="contact-bottom">
-                    <span class="contact-preview">@${peer.username}</span>
+                    <span class="contact-preview">${escapeHtml(previewText)}</span>
+                    ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
+                </div>
+            </div>
+        `;
+        listContainer.appendChild(card);
+    });
+}
+
+function renderContactsCards(users) {
+    const listContainer = document.getElementById('userList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    if (users.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align:center; padding:36px 14px; color:var(--composer-meta-text); font-size:12.5px;">
+                <i class="fa-solid fa-user-group" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
+                ${currentContactsFilter === 'online' ? 'No users online right now.' : 'No other users registered.'}
+            </div>`;
+        return;
+    }
+
+    users.forEach(peer => {
+        const card = document.createElement('div');
+        const isOnline = peer.status === 'ONLINE';
+        card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
+        card.onclick = () => selectConversationPeer(peer);
+
+        card.innerHTML = `
+            <div class="contact-avatar-wrapper">
+                <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="contact-avatar">
+                <span class="status-indicator-dot ${isOnline ? 'online' : 'offline'}"></span>
+            </div>
+            <div class="contact-info">
+                <div class="contact-top">
+                    <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
+                    <span class="contact-badge-pill ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+                </div>
+                <div class="contact-bottom">
+                    <span class="contact-preview">@${escapeHtml(peer.username)}${peer.email ? ' • ' + escapeHtml(peer.email) : ''}</span>
                 </div>
             </div>
         `;
@@ -636,21 +831,40 @@ function renderCustomUserList(users) {
  */
 function selectConversationPeer(peer) {
     activePeer = peer;
-    renderSidebarList();
 
+    // Reveal chat canvas, hide empty state
     document.getElementById('chatEmptyState').classList.add('hidden');
     document.getElementById('chatActiveContainer').classList.remove('hidden');
 
-    document.getElementById('activeTargetAvatar').src = peer.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${peer.username}`;
+    const avatarUrl = peer.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${peer.username}`;
+    document.getElementById('activeTargetAvatar').src = avatarUrl;
     document.getElementById('activeTargetName').textContent = peer.displayName || peer.username;
     updateActiveHeaderStatus();
 
+    // Re-render sidebar so selected item is highlighted
+    renderSidebarList();
+
+    // Clear unread badge in memory
+    const existing = recentConversations.find(c => c.user && c.user.id === peer.id);
+    if (existing) {
+        existing.unreadCount = 0;
+    }
+    updateSidebarCount();
+
+    // Subscribe to pairwise channel
     subscribeToConversationChannels();
 
     // Algorithm 4: Retrieve Message History
     loadMessageHistory();
 
+    // Mark as read in backend
     fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${peer.id}`, { method: 'POST' });
+
+    // Focus input
+    setTimeout(() => {
+        const input = document.getElementById('chatMessageInput');
+        if (input) input.focus();
+    }, 100);
 }
 
 function updateActiveHeaderStatus() {
@@ -659,37 +873,46 @@ function updateActiveHeaderStatus() {
     const text = document.getElementById('activeTargetStatusText');
     const isOnline = activePeer.status === 'ONLINE';
 
-    dot.className = `status-indicator-dot ${isOnline ? 'online' : 'offline'}`;
-    text.textContent = isOnline ? 'Online now • Available' : 'Offline • Last seen recently';
+    if (dot) dot.className = `status-indicator-dot ${isOnline ? 'online' : 'offline'}`;
+    if (text) text.textContent = isOnline ? 'Online now • Available' : 'Offline • Last seen recently';
 }
 
 function subscribeToConversationChannels() {
-    if (!stompClient || !isConnected || !activePeer) return;
+    if (!stompClient || !isConnected || !activePeer || !currentUser) return;
 
     if (activeSubscription) {
-        activeSubscription.unsubscribe();
+        try { activeSubscription.unsubscribe(); } catch (e) {}
         activeSubscription = null;
     }
     if (activeTypingSubscription) {
-        activeTypingSubscription.unsubscribe();
+        try { activeTypingSubscription.unsubscribe(); } catch (e) {}
         activeTypingSubscription = null;
     }
 
     const channelKey = Math.min(currentUser.id, activePeer.id) + '.' + Math.max(currentUser.id, activePeer.id);
 
     activeSubscription = stompClient.subscribe(`/topic/messages.${channelKey}`, (msg) => {
-        const chatMessage = JSON.parse(msg.body);
-        if (chatMessage.senderId !== currentUser.id) {
-            appendMessageBubble(chatMessage);
-            scrollFeedToBottom();
+        try {
+            const chatMessage = JSON.parse(msg.body);
+            // Append incoming message from the peer
+            if (chatMessage.senderId !== currentUser.id) {
+                appendMessageBubble(chatMessage);
+                scrollFeedToBottom();
+                fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${activePeer.id}`, { method: 'POST' });
+            }
+            updateConversationInList(chatMessage);
+        } catch (e) {
+            console.error('Error handling pairwise message', e);
         }
     });
 
     activeTypingSubscription = stompClient.subscribe(`/topic/typing.${channelKey}`, (msg) => {
-        const payload = JSON.parse(msg.body);
-        if (payload.senderId === activePeer.id) {
-            handleTypingNotification(payload.isTyping);
-        }
+        try {
+            const payload = JSON.parse(msg.body);
+            if (payload.senderId === activePeer.id) {
+                handleTypingNotification(payload.isTyping);
+            }
+        } catch (e) {}
     });
 }
 
@@ -886,11 +1109,12 @@ async function handleSendMessage(e) {
         scrollFeedToBottom();
 
         input.value = '';
-        loadConversationsList();
+        updateConversationInList(messagePayload);
     } catch (err) {
         console.error('Failed to send message', err);
     } finally {
         sendBtn.disabled = false;
+        if (input) input.focus();
     }
 }
 

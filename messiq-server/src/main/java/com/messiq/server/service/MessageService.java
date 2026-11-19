@@ -81,17 +81,21 @@ public class MessageService {
         Message savedMessage = messageRepository.save(message);
         ChatMessageDTO savedDto = ChatMessageDTO.fromEntity(savedMessage);
 
-        // Step 7: Deliver the message to the receiver in real time via WebSocket
+        // Step 7: Deliver the message in real time via WebSocket
         try {
-            // User-specific queue
+            // 1. Direct to receiver's personal user topic (guaranteed real-time delivery)
+            messagingTemplate.convertAndSend("/topic/user." + receiver.getId(), savedDto);
+            // 2. Direct to sender's personal user topic (instant sync)
+            messagingTemplate.convertAndSend("/topic/user." + sender.getId(), savedDto);
+            // 3. Public chat channel for this conversation pair
+            String conversationChannel = getConversationChannel(sender.getId(), receiver.getId());
+            messagingTemplate.convertAndSend("/topic/messages." + conversationChannel, savedDto);
+            // 4. Spring user-specific queue fallback
             messagingTemplate.convertAndSendToUser(
                     receiver.getUsername(),
                     "/queue/messages",
                     savedDto
             );
-            // Public chat channel for this conversation pair
-            String conversationChannel = getConversationChannel(sender.getId(), receiver.getId());
-            messagingTemplate.convertAndSend("/topic/messages." + conversationChannel, savedDto);
         } catch (Exception e) {
             // Log warning, message is saved in DB
             System.err.println("Could not deliver WebSocket frame: " + e.getMessage());
