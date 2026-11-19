@@ -3874,6 +3874,67 @@ body.font-lg .msg-bubble span { font-size: 15.5px; }
     color: var(--contact-name);
 }
 
+.emoji-direct-send-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.emoji-send-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    background-color: var(--bg-search);
+    border: 1px solid var(--sidebar-border);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--contact-name);
+    font-family: var(--font-heading);
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.emoji-send-btn:hover {
+    background-color: var(--chip-bg);
+    border-color: var(--online-green);
+    transform: translateY(-1px);
+}
+
+.emoji-send-btn.thumbs-up-primary {
+    background-color: rgba(16, 185, 129, 0.12);
+    border-color: var(--online-green);
+    color: var(--online-green);
+}
+
+.emoji-send-btn.thumbs-up-primary:hover {
+    background-color: var(--online-green);
+    color: #ffffff;
+}
+
+.emoji-section-divider {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--composer-meta-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 8px 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.emoji-section-divider::before,
+.emoji-section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: var(--sidebar-border);
+}
+
 .emoji-list {
     display: flex;
     align-items: center;

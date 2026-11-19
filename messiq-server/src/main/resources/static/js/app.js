@@ -620,6 +620,33 @@ function isChatPinned(userId) {
     return ids.includes(Number(userId));
 }
 
+// =========================================================
+// PERSISTENT CLEARED CHATS (DELETER SIDE PERSISTENCE)
+// =========================================================
+
+function getClearedChatTimestamps() {
+    if (!currentUser) return {};
+    try {
+        const stored = localStorage.getItem(`messiq_cleared_${currentUser.id}`);
+        return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveClearedChatTimestamp(peerId, isoTimestamp) {
+    if (!currentUser || !peerId) return;
+    const map = getClearedChatTimestamps();
+    map[Number(peerId)] = isoTimestamp;
+    localStorage.setItem(`messiq_cleared_${currentUser.id}`, JSON.stringify(map));
+}
+
+function getClearedChatTimestampForPeer(peerId) {
+    if (!peerId) return null;
+    const map = getClearedChatTimestamps();
+    return map[Number(peerId)] || null;
+}
+
 function togglePinChat(e, userId) {
     if (e) {
         e.stopPropagation();
@@ -650,15 +677,50 @@ function togglePinActiveChat() {
     togglePinChat(null, activePeer.id);
 }
 
+function togglePinActiveChatFromDetails(shouldPin) {
+    if (!currentUser || !activePeer) return;
+    const userId = Number(activePeer.id);
+    let ids = getPinnedUserIds();
+    const index = ids.indexOf(userId);
+
+    if (shouldPin && index === -1) {
+        ids.push(userId);
+        showToast('Chat pinned to top');
+    } else if (!shouldPin && index >= 0) {
+        ids.splice(index, 1);
+        showToast('Chat unpinned');
+    }
+
+    savePinnedUserIds(ids);
+    updateActiveChatPinButton();
+    updateSidebarCount();
+    renderSidebarList();
+}
+
 function updateActiveChatPinButton() {
+    const isPinned = activePeer ? isChatPinned(activePeer.id) : false;
     const btn = document.getElementById('chatPinHeaderBtn');
-    if (!btn) return;
-    if (activePeer && isChatPinned(activePeer.id)) {
-        btn.classList.add('active');
-        btn.title = 'Unpin this conversation';
-    } else {
-        btn.classList.remove('active');
-        btn.title = 'Pin conversation to top';
+    if (btn) {
+        if (isPinned) {
+            btn.classList.add('active');
+            btn.title = 'Unpin this conversation';
+        } else {
+            btn.classList.remove('active');
+            btn.title = 'Pin conversation to top';
+        }
+    }
+
+    const pinToggle = document.getElementById('detailsPinToggle');
+    const pinSubtext = document.getElementById('detailsPinnedCountSubtext');
+    const pinnedCount = getPinnedUserIds().length;
+
+    if (pinToggle) {
+        pinToggle.checked = isPinned;
+    }
+    if (pinSubtext) {
+        pinSubtext.textContent = isPinned 
+            ? `Pinned to top (${pinnedCount} pinned)` 
+            : `Pin this chat to top (${pinnedCount} total pinned)`;
     }
 }
 
@@ -774,8 +836,20 @@ async function loadConversationsList() {
     try {
         const res = await fetch(`/api/messages/conversations?userId=${currentUser.id}`);
         const data = await res.json();
-        if (data.success) {
-            recentConversations = data.data;
+        if (data.success && data.data) {
+            recentConversations = data.data.map(conv => {
+                if (conv && conv.user && conv.lastMessage) {
+                    const clearTime = getClearedChatTimestampForPeer(conv.user.id);
+                    if (clearTime && conv.lastMessage.timestamp && new Date(conv.lastMessage.timestamp) <= new Date(clearTime)) {
+                        return {
+                            ...conv,
+                            lastMessage: null,
+                            unreadCount: 0
+                        };
+                    }
+                }
+                return conv;
+            });
             updateSidebarCount();
             if (currentView === 'messages' || currentView === 'pinned') {
                 renderSidebarList();
@@ -1199,7 +1273,7 @@ function subscribeToConversationChannels() {
 async function loadMessageHistory() {
     const feed = document.getElementById('messageFeed');
     feed.innerHTML = `
-        <div class="date-divider"><span>Today, October 29</span></div>
+        <div class="date-divider"><span>Today</span></div>
         <div style="text-align:center; padding:30px; color:var(--composer-meta-text);">
             <i class="fa-solid fa-spinner fa-spin" style="font-size:20px;"></i>
             <p style="margin-top:8px; font-size:12px;">Loading messages...</p>
@@ -1209,17 +1283,26 @@ async function loadMessageHistory() {
         const res = await fetch(`/api/messages/history?user1=${currentUser.id}&user2=${activePeer.id}`);
         const data = await res.json();
         
-        feed.innerHTML = `<div class="date-divider"><span>Today, October 29</span></div>`;
+        feed.innerHTML = `<div class="date-divider"><span>Today</span></div>`;
 
-        if (data.success && data.data.length > 0) {
-            data.data.forEach(msg => appendMessageBubble(msg));
-            scrollFeedToBottom();
-        } else {
-            feed.innerHTML += `
-                <div style="text-align:center; padding:40px 20px; color:var(--composer-meta-text); font-size:13px;">
-                    <i class="fa-regular fa-paper-plane" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
-                    No messages yet.<br>Say hello to start the conversation!
-                </div>`;
+        if (data.success && data.data) {
+            const clearTime = getClearedChatTimestampForPeer(activePeer.id);
+            let messages = data.data;
+            if (clearTime) {
+                const clearDate = new Date(clearTime);
+                messages = messages.filter(msg => msg.timestamp && new Date(msg.timestamp) > clearDate);
+            }
+
+            if (messages.length > 0) {
+                messages.forEach(msg => appendMessageBubble(msg));
+                scrollFeedToBottom();
+            } else {
+                feed.innerHTML += `
+                    <div style="text-align:center; padding:40px 20px; color:var(--composer-meta-text); font-size:13px;">
+                        <i class="fa-regular fa-paper-plane" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
+                        No messages yet.<br>Say hello to start the conversation!
+                    </div>`;
+            }
         }
     } catch (e) {
         feed.innerHTML = `<div style="text-align:center; color:#ef4444; padding:20px;">Failed to retrieve history.</div>`;
@@ -1469,6 +1552,46 @@ function insertEmoji(emojiChar) {
 
     handleTyping();
     closeEmojiPicker();
+}
+
+async function sendEmojiDirectly(emojiChar) {
+    closeEmojiPicker();
+    if (!activePeer || !currentUser) {
+        showToast('Select a conversation to send emoji');
+        return;
+    }
+
+    try {
+        const messagePayload = {
+            senderId: currentUser.id,
+            senderUsername: currentUser.username,
+            receiverId: activePeer.id,
+            receiverUsername: activePeer.username,
+            content: emojiChar,
+            type: 'CHAT',
+            mediaUrl: null,
+            fileName: null,
+            fileSize: null,
+            status: 'SENT',
+            timestamp: new Date().toISOString()
+        };
+
+        if (stompClient && isConnected) {
+            stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(messagePayload));
+        } else {
+            await fetch('/api/messages/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(messagePayload)
+            });
+        }
+
+        appendMessageBubble(messagePayload);
+        scrollFeedToBottom();
+        updateConversationInList(messagePayload);
+    } catch (err) {
+        console.error('Failed to send emoji', err);
+    }
 }
 
 // =========================================================
@@ -2190,8 +2313,6 @@ function updateContactDetailsContent() {
     const userEl = document.getElementById('detailsUsername');
     const statusDot = document.getElementById('detailsStatusDot');
     const statusText = document.getElementById('detailsStatusText');
-    const pinBadge = document.getElementById('detailsPinStatusBadge');
-    const blockLabel = document.getElementById('detailsBlockLabel');
 
     if (avatarImg) avatarImg.src = avatarUrl;
     if (nameEl) nameEl.textContent = activePeer.displayName || activePeer.username;
@@ -2203,15 +2324,8 @@ function updateContactDetailsContent() {
         statusText.className = `details-contact-status ${isOnline ? '' : 'offline'}`;
     }
 
-    if (pinBadge) {
-        const pinned = isChatPinned(activePeer.id);
-        pinBadge.textContent = pinned ? 'Pinned' : 'No';
-        pinBadge.style.color = pinned ? 'var(--online-green)' : 'var(--composer-meta-text)';
-    }
-
-    if (blockLabel) {
-        blockLabel.textContent = `Block @${activePeer.username}`;
-    }
+    // Synchronize pinned toggle switch and count
+    updateActiveChatPinButton();
 
     // Populate media thumbnails
     populateDetailsMediaGrid();
@@ -2226,8 +2340,14 @@ async function populateDetailsMediaGrid() {
     try {
         const res = await fetch(`/api/messages/history?user1=${currentUser.id}&user2=${activePeer.id}`);
         const data = await res.json();
-        if (data.success) {
-            const mediaMsgs = data.data.filter(m => m.mediaUrl && (m.type === 'IMAGE' || m.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)));
+        if (data.success && data.data) {
+            const clearTime = getClearedChatTimestampForPeer(activePeer.id);
+            let msgs = data.data;
+            if (clearTime) {
+                const clearDate = new Date(clearTime);
+                msgs = msgs.filter(m => m.timestamp && new Date(m.timestamp) > clearDate);
+            }
+            const mediaMsgs = msgs.filter(m => m.mediaUrl && (m.type === 'IMAGE' || m.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)));
             if (countEl) countEl.textContent = mediaMsgs.length;
 
             if (mediaMsgs.length === 0) {
@@ -2250,18 +2370,14 @@ function toggleMuteChat(muted) {
     showToast(muted ? `Muted notifications for @${activePeer ? activePeer.username : 'contact'}` : 'Notifications unmuted');
 }
 
-function blockContactAction() {
-    if (!activePeer) return;
-    showToast(`@${activePeer.username} has been blocked`);
-}
-
-function reportContactAction() {
-    if (!activePeer) return;
-    showToast(`Report submitted for @${activePeer.username}`);
-}
-
 function clearCurrentChatAction() {
-    if (!activePeer) return;
+    if (!activePeer || !currentUser) return;
+
+    // Save persistent cleared timestamp for deleter side
+    const nowIso = new Date().toISOString();
+    saveClearedChatTimestamp(activePeer.id, nowIso);
+
+    // Clear active message feed
     const feed = document.getElementById('messageFeed');
     if (feed) {
         feed.innerHTML = `
@@ -2271,6 +2387,19 @@ function clearCurrentChatAction() {
                 Chat cleared. Say hello to start fresh!
             </div>`;
     }
+
+    // Update conversation in memory to clear last message preview and unread count
+    const existing = recentConversations.find(c => c.user && c.user.id === activePeer.id);
+    if (existing) {
+        existing.lastMessage = null;
+        existing.unreadCount = 0;
+    }
+
+    // Refresh details media grid and sidebar
+    populateDetailsMediaGrid();
+    updateSidebarCount();
+    renderSidebarList();
+
     showToast('Chat history cleared');
 }
 

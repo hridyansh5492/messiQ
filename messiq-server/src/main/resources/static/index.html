@@ -700,14 +700,6 @@
                                     <p>Your messages and shared media are end-to-end encrypted with STOMP protocol. No one outside of this chat can inspect your messages.</p>
                                 </div>
                             </div>
-
-                            <div class="settings-row-item">
-                                <div class="setting-text">
-                                    <strong>Blocked Contacts</strong>
-                                    <span>0 contacts blocked</span>
-                                </div>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="showToast('No blocked contacts')">Manage</button>
-                            </div>
                         </div>
 
                         <!-- TAB 3: Chats & Wallpaper (WhatsApp counterpart) -->
@@ -1090,23 +1082,52 @@
 
                     <!-- Floating Rounded Input Composer -->
                     <footer class="chat-composer-wrapper">
-                        <!-- Quick Emoji Picker Bar -->
+                        <!-- Quick Emoji Picker Bar (Direct Send & Insert) -->
                         <div id="emojiPickerBar" class="emoji-picker-bar hidden" onclick="event.stopPropagation()">
                             <div class="emoji-picker-header">
-                                <span>Quick Emojis</span>
+                                <span>Quick Send Emojis</span>
                                 <button type="button" class="emoji-picker-close" onclick="closeEmojiPicker()"><i class="fa-solid fa-xmark"></i></button>
                             </div>
+                            
+                            <!-- 1-Click Instant Send Row with Thumbs Up featured prominently -->
+                            <div class="emoji-direct-send-row">
+                                <button type="button" class="emoji-send-btn thumbs-up-primary" onclick="sendEmojiDirectly('👍')" title="Send Thumbs Up Immediately">
+                                    <span class="emoji-icon">👍</span>
+                                    <span class="emoji-action-label">Send 👍</span>
+                                </button>
+                                <button type="button" class="emoji-send-btn" onclick="sendEmojiDirectly('❤️')" title="Send Heart Immediately">
+                                    <span class="emoji-icon">❤️</span>
+                                    <span class="emoji-action-label">Send ❤️</span>
+                                </button>
+                                <button type="button" class="emoji-send-btn" onclick="sendEmojiDirectly('😂')" title="Send Laugh Immediately">
+                                    <span class="emoji-icon">😂</span>
+                                    <span class="emoji-action-label">Send 😂</span>
+                                </button>
+                                <button type="button" class="emoji-send-btn" onclick="sendEmojiDirectly('😭')" title="Send Tears Immediately">
+                                    <span class="emoji-icon">😭</span>
+                                    <span class="emoji-action-label">Send 😭</span>
+                                </button>
+                                <button type="button" class="emoji-send-btn" onclick="sendEmojiDirectly('😊')" title="Send Smile Immediately">
+                                    <span class="emoji-icon">😊</span>
+                                    <span class="emoji-action-label">Send 😊</span>
+                                </button>
+                            </div>
+
+                            <div class="emoji-section-divider">
+                                <span>Or click to insert into message</span>
+                            </div>
+
                             <div class="emoji-list">
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('👍')" title="Thumbs Up">👍</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('❤️')" title="Heart">❤️</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('😂')" title="Laughing / Joy">😂</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('😭')" title="Tears / Crying">😭</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('😊')" title="Smile">😊</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('😍')" title="Heart Eyes">😍</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('🔥')" title="Fire">🔥</button>
-                                <button type="button" class="emoji-btn" onclick="insertEmoji('👍')" title="Thumbs Up">👍</button>
+                                <button type="button" class="emoji-btn" onclick="insertEmoji('🎉')" title="Celebration">🎉</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('✨')" title="Sparkles">✨</button>
                                 <button type="button" class="emoji-btn" onclick="insertEmoji('🙏')" title="Pray / Thanks">🙏</button>
-                                <button type="button" class="emoji-btn" onclick="insertEmoji('🌿')" title="Celadon Sprout">🌿</button>
                             </div>
                         </div>
 
@@ -1235,12 +1256,18 @@
                             </label>
                         </div>
 
-                        <div class="details-setting-row" onclick="togglePinActiveChat()">
+                        <div class="details-setting-row">
                             <div class="setting-icon-label">
                                 <i class="fa-solid fa-thumbtack"></i>
-                                <span>Pinned chat</span>
+                                <div>
+                                    <span>Pinned chat</span>
+                                    <p id="detailsPinnedCountSubtext" class="setting-subtext">Pin this chat to top</p>
+                                </div>
                             </div>
-                            <span id="detailsPinStatusBadge" class="details-pill-badge">No</span>
+                            <label class="switch" title="Toggle Pinned Chat">
+                                <input type="checkbox" id="detailsPinToggle" onchange="togglePinActiveChatFromDetails(this.checked)">
+                                <span class="slider"></span>
+                            </label>
                         </div>
 
                         <div class="details-setting-row">
@@ -1254,16 +1281,8 @@
                         </div>
                     </div>
 
-                    <!-- 5. Danger / Safety Actions (WhatsApp counterpart) -->
+                    <!-- 5. Chat History Actions (Block & Report removed) -->
                     <div class="details-section details-danger-section">
-                        <button type="button" class="details-action-btn danger" onclick="blockContactAction()">
-                            <i class="fa-solid fa-ban"></i>
-                            <span id="detailsBlockLabel">Block Contact</span>
-                        </button>
-                        <button type="button" class="details-action-btn danger" onclick="reportContactAction()">
-                            <i class="fa-solid fa-thumbs-down"></i>
-                            <span>Report Contact</span>
-                        </button>
                         <button type="button" class="details-action-btn danger" onclick="clearCurrentChatAction()">
                             <i class="fa-regular fa-trash-can"></i>
                             <span>Clear Chat History</span>
