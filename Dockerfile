@@ -29,5 +29,5 @@ COPY --from=builder /build/messiq-server/target/messiq-server-1.0.0.jar app.jar
 ENV PORT=8080
 EXPOSE 8080
 
-# Run Spring Boot application
-ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
+# Run Spring Boot application (forcing IPv4 stack for cloud container compatibility)
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
