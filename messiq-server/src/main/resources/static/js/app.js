@@ -23,14 +23,29 @@ let activeSubscription = null;
 let activeTypingSubscription = null;
 let pendingMediaFile = null;
 let typingTimeout = null;
-let currentView = 'messages'; // 'messages' or 'contacts'
+let currentView = 'messages'; // 'messages', 'contacts', or 'pinned'
 let currentMessagesFilter = 'conversations'; // 'conversations' or 'unread'
 let currentContactsFilter = 'all'; // 'all' or 'online'
+let toastTimer = null;
+
+// WhatsApp-Inspired User Customization State
+let userSettings = {
+    statusBio: 'Available • Using messiQ',
+    lastSeenPrivacy: 'everyone',
+    readReceipts: true,
+    typingBroadcast: true,
+    enterToSend: true,
+    wallpaper: 'celadon',
+    fontSize: 'md',
+    messageSounds: true,
+    desktopNotifications: false
+};
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     updateTopbarDate();
+    initGlobalKeyListeners();
     checkStoredSession();
 });
 
@@ -346,31 +361,37 @@ async function handleRegister(e) {
     }
 }
 
-function handleLogout() {
-    if (confirm('Are you sure you want to sign out of messiQ?')) {
-        // Broadcast offline status
-        if (stompClient && isConnected && currentUser) {
-            try {
-                stompClient.send('/app/user.status', {}, JSON.stringify({
-                    userId: currentUser.id,
-                    username: currentUser.username,
-                    status: 'OFFLINE'
-                }));
-                stompClient.disconnect();
-            } catch (e) {
-                console.warn('Disconnect error:', e);
-            }
-        }
-        localStorage.removeItem('messiq_user');
-        localStorage.removeItem('messiq_token');
-        currentUser = null;
-        authToken = null;
-        activePeer = null;
+function handleLogout(e) {
+    toggleProfilePopover(e, 'rail');
+}
 
-        // Transition back to clean Home Page
-        showHomeScreen();
-        scrollToTop();
+function executeSignOut() {
+    closeProfilePopover();
+    closeContactDetailsPane();
+
+    // Broadcast offline status
+    if (stompClient && isConnected && currentUser) {
+        try {
+            stompClient.send('/app/user.status', {}, JSON.stringify({
+                userId: currentUser.id,
+                username: currentUser.username,
+                status: 'OFFLINE'
+            }));
+            stompClient.disconnect();
+        } catch (e) {
+            console.warn('Disconnect error:', e);
+        }
     }
+    localStorage.removeItem('messiq_user');
+    localStorage.removeItem('messiq_token');
+    currentUser = null;
+    authToken = null;
+    activePeer = null;
+
+    showToast('Signed out of messiQ');
+    // Transition back to clean Home Page
+    showHomeScreen();
+    scrollToTop();
 }
 
 // =========================================================
@@ -473,6 +494,22 @@ function handlePresenceUpdate(statusUpdate) {
 function handleIncomingMessage(chatMessage) {
     if (!currentUser) return;
 
+    // Trigger audio chime & notification if message was sent by another user
+    if (chatMessage.senderId !== currentUser.id) {
+        if (userSettings.messageSounds) {
+            playMessageNotificationSound();
+        }
+        if (userSettings.desktopNotifications && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            const senderName = chatMessage.senderUsername || 'Contact';
+            try {
+                new Notification(`messiQ: ${senderName}`, {
+                    body: chatMessage.content || (chatMessage.type === 'IMAGE' ? '📷 Photo attachment' : 'Sent a file'),
+                    icon: `https://api.dicebear.com/7.x/bottts/svg?seed=${senderName}`
+                });
+            } catch (e) {}
+        }
+    }
+
     // Check if message belongs to the currently active conversation
     const isCurrentActive = activePeer && (chatMessage.senderId === activePeer.id || chatMessage.receiverId === activePeer.id);
 
@@ -528,7 +565,7 @@ function updateConversationInList(chatMessage) {
     }
 
     updateSidebarCount();
-    if (currentView === 'messages') {
+    if (currentView === 'messages' || currentView === 'pinned') {
         renderSidebarList();
     }
 }
@@ -544,6 +581,9 @@ function initMessengerDashboard() {
     document.getElementById('topbarUserAvatar').src = avatarUrl;
     document.getElementById('railUserAvatar').src = avatarUrl;
 
+    // Load WhatsApp-style settings (wallpaper, bio, font size, etc.)
+    loadUserSettings();
+
     // DO NOT open any default chat! Start with clean empty state
     activePeer = null;
     document.getElementById('chatActiveContainer').classList.add('hidden');
@@ -555,12 +595,81 @@ function initMessengerDashboard() {
     switchToMessagesView();
 }
 
+// =========================================================
+// PINNED CHATS ENGINE
+// =========================================================
+
+function getPinnedUserIds() {
+    if (!currentUser) return [];
+    try {
+        const stored = localStorage.getItem(`messiq_pinned_${currentUser.id}`);
+        return stored ? JSON.parse(stored).map(Number) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function savePinnedUserIds(ids) {
+    if (!currentUser) return;
+    localStorage.setItem(`messiq_pinned_${currentUser.id}`, JSON.stringify(ids.map(Number)));
+}
+
+function isChatPinned(userId) {
+    if (!userId) return false;
+    const ids = getPinnedUserIds();
+    return ids.includes(Number(userId));
+}
+
+function togglePinChat(e, userId) {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    if (!currentUser || !userId) return;
+
+    userId = Number(userId);
+    let ids = getPinnedUserIds();
+    const index = ids.indexOf(userId);
+
+    if (index >= 0) {
+        ids.splice(index, 1);
+        showToast('Chat unpinned');
+    } else {
+        ids.push(userId);
+        showToast('Chat pinned to top');
+    }
+
+    savePinnedUserIds(ids);
+    updateActiveChatPinButton();
+    updateSidebarCount();
+    renderSidebarList();
+}
+
+function togglePinActiveChat() {
+    if (!activePeer) return;
+    togglePinChat(null, activePeer.id);
+}
+
+function updateActiveChatPinButton() {
+    const btn = document.getElementById('chatPinHeaderBtn');
+    if (!btn) return;
+    if (activePeer && isChatPinned(activePeer.id)) {
+        btn.classList.add('active');
+        btn.title = 'Unpin this conversation';
+    } else {
+        btn.classList.remove('active');
+        btn.title = 'Pin conversation to top';
+    }
+}
+
 function switchToMessagesView() {
     currentView = 'messages';
     const railMsg = document.getElementById('railBtnMessages');
     const railContacts = document.getElementById('railBtnContacts');
+    const railPinned = document.getElementById('railBtnPinned');
     if (railMsg) railMsg.classList.add('active');
     if (railContacts) railContacts.classList.remove('active');
+    if (railPinned) railPinned.classList.remove('active');
 
     const title = document.getElementById('sidebarTitle');
     const label = document.getElementById('sectionLabel');
@@ -582,8 +691,10 @@ function switchToContactsView() {
     currentView = 'contacts';
     const railMsg = document.getElementById('railBtnMessages');
     const railContacts = document.getElementById('railBtnContacts');
+    const railPinned = document.getElementById('railBtnPinned');
     if (railMsg) railMsg.classList.remove('active');
     if (railContacts) railContacts.classList.add('active');
+    if (railPinned) railPinned.classList.remove('active');
 
     const title = document.getElementById('sidebarTitle');
     const label = document.getElementById('sectionLabel');
@@ -596,6 +707,31 @@ function switchToContactsView() {
     if (searchInput) searchInput.placeholder = 'Search contacts or @handle...';
     if (msgFilter) msgFilter.classList.add('hidden');
     if (contactsFilter) contactsFilter.classList.remove('hidden');
+
+    updateSidebarCount();
+    renderSidebarList();
+}
+
+function switchToPinnedView() {
+    currentView = 'pinned';
+    const railMsg = document.getElementById('railBtnMessages');
+    const railContacts = document.getElementById('railBtnContacts');
+    const railPinned = document.getElementById('railBtnPinned');
+    if (railMsg) railMsg.classList.remove('active');
+    if (railContacts) railContacts.classList.remove('active');
+    if (railPinned) railPinned.classList.add('active');
+
+    const title = document.getElementById('sidebarTitle');
+    const label = document.getElementById('sectionLabel');
+    const searchInput = document.getElementById('userSearchInput');
+    const msgFilter = document.getElementById('messagesFilterRow');
+    const contactsFilter = document.getElementById('contactsFilterRow');
+
+    if (title) title.textContent = 'Pinned';
+    if (label) label.textContent = 'PINNED CONVERSATIONS';
+    if (searchInput) searchInput.placeholder = 'Search pinned chats...';
+    if (msgFilter) msgFilter.classList.add('hidden');
+    if (contactsFilter) contactsFilter.classList.add('hidden');
 
     updateSidebarCount();
     renderSidebarList();
@@ -624,6 +760,10 @@ function updateSidebarCount() {
     if (!badge) return;
     if (currentView === 'messages') {
         badge.textContent = recentConversations.length;
+    } else if (currentView === 'pinned') {
+        const pinnedIds = getPinnedUserIds();
+        const count = recentConversations.filter(c => c.user && pinnedIds.includes(Number(c.user.id))).length;
+        badge.textContent = count;
     } else {
         badge.textContent = allUsers.length;
     }
@@ -637,7 +777,7 @@ async function loadConversationsList() {
         if (data.success) {
             recentConversations = data.data;
             updateSidebarCount();
-            if (currentView === 'messages') {
+            if (currentView === 'messages' || currentView === 'pinned') {
                 renderSidebarList();
             }
             // DO NOT auto-select Maya Chen or any peer on launch!
@@ -655,7 +795,7 @@ async function loadDirectoryList() {
         if (data.success) {
             allUsers = data.data;
             updateSidebarCount();
-            if (currentView === 'contacts') {
+            if (currentView === 'contacts' || currentView === 'pinned') {
                 renderSidebarList();
             }
         }
@@ -682,6 +822,22 @@ function handleSearch(query) {
             return name.includes(q) || username.includes(q) || lastMsg.includes(q);
         });
         renderMessagesCards(filtered);
+    } else if (currentView === 'pinned') {
+        const pinnedIds = getPinnedUserIds();
+        let items = recentConversations.filter(c => c.user && pinnedIds.includes(Number(c.user.id)));
+        pinnedIds.forEach(id => {
+            if (!items.some(it => it.user && it.user.id === Number(id))) {
+                const foundU = allUsers.find(u => u.id === Number(id));
+                if (foundU) items.push({ user: foundU, lastMessage: null, unreadCount: 0 });
+            }
+        });
+        const filtered = items.filter(c => {
+            const name = (c.user.displayName || '').toLowerCase();
+            const username = (c.user.username || '').toLowerCase();
+            const lastMsg = c.lastMessage && c.lastMessage.content ? c.lastMessage.content.toLowerCase() : '';
+            return name.includes(q) || username.includes(q) || lastMsg.includes(q);
+        });
+        renderPinnedCards(filtered);
     } else {
         const filtered = allUsers.filter(u => {
             const name = (u.displayName || '').toLowerCase();
@@ -706,7 +862,7 @@ function renderSidebarList() {
     const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
     if (currentView === 'messages') {
-        let items = recentConversations;
+        let items = [...recentConversations];
         if (currentMessagesFilter === 'unread') {
             items = items.filter(c => (c.unreadCount || 0) > 0);
         }
@@ -718,7 +874,38 @@ function renderSidebarList() {
                 return name.includes(query) || username.includes(query) || lastMsg.includes(query);
             });
         }
+        // Always sort pinned conversations to the very top of messages list
+        items.sort((a, b) => {
+            const aPinned = isChatPinned(a.user.id);
+            const bPinned = isChatPinned(b.user.id);
+            if (aPinned && !bPinned) return -1;
+            if (!aPinned && bPinned) return 1;
+            return 0;
+        });
         renderMessagesCards(items);
+    } else if (currentView === 'pinned') {
+        const pinnedIds = getPinnedUserIds();
+        let items = recentConversations.filter(c => c.user && pinnedIds.includes(Number(c.user.id)));
+        
+        // Also include any user who was pinned from contacts even if no prior message history
+        pinnedIds.forEach(id => {
+            if (!items.some(it => it.user && it.user.id === Number(id))) {
+                const foundU = allUsers.find(u => u.id === Number(id));
+                if (foundU) {
+                    items.push({ user: foundU, lastMessage: null, unreadCount: 0 });
+                }
+            }
+        });
+
+        if (query) {
+            items = items.filter(c => {
+                const name = (c.user.displayName || '').toLowerCase();
+                const username = (c.user.username || '').toLowerCase();
+                const lastMsg = c.lastMessage && c.lastMessage.content ? c.lastMessage.content.toLowerCase() : '';
+                return name.includes(query) || username.includes(query) || lastMsg.includes(query);
+            });
+        }
+        renderPinnedCards(items);
     } else {
         let users = allUsers;
         if (currentContactsFilter === 'online') {
@@ -755,6 +942,7 @@ function renderMessagesCards(items) {
         const lastMsg = item.lastMessage;
         const unread = item.unreadCount || 0;
         const isOnline = peer.status === 'ONLINE';
+        const isPinned = isChatPinned(peer.id);
 
         const card = document.createElement('div');
         card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
@@ -774,8 +962,80 @@ function renderMessagesCards(items) {
             </div>
             <div class="contact-info">
                 <div class="contact-top">
-                    <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
-                    <span class="contact-time">${timeStr}</span>
+                    <span class="contact-name">
+                        ${escapeHtml(peer.displayName || peer.username)}
+                        ${isPinned ? '<i class="fa-solid fa-thumbtack pinned-indicator" title="Pinned Chat"></i>' : ''}
+                    </span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="contact-time">${timeStr}</span>
+                        <button type="button" class="pin-card-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? 'Unpin chat' : 'Pin chat to top'}" onclick="togglePinChat(event, ${peer.id})">
+                            <i class="fa-solid fa-thumbtack"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="contact-bottom">
+                    <span class="contact-preview">${escapeHtml(previewText)}</span>
+                    ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ''}
+                </div>
+            </div>
+        `;
+        listContainer.appendChild(card);
+    });
+}
+
+function renderPinnedCards(items) {
+    const listContainer = document.getElementById('userList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    if (items.length === 0) {
+        listContainer.innerHTML = `
+            <div style="text-align:center; padding:36px 14px; color:var(--composer-meta-text); font-size:12.5px;">
+                <i class="fa-solid fa-thumbtack" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6; transform:rotate(45deg);"></i>
+                No pinned chats yet.<br>Click the pin icon on any chat to keep it at the top!
+                <div style="margin-top:14px;">
+                    <button onclick="switchToMessagesView()" style="background:var(--composer-send-bg); color:var(--composer-send-color); border:none; padding:7px 16px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer;">
+                        <i class="fa-solid fa-comment"></i> View Messages
+                    </button>
+                </div>
+            </div>`;
+        return;
+    }
+
+    items.forEach(item => {
+        const peer = item.user;
+        const lastMsg = item.lastMessage;
+        const unread = item.unreadCount || 0;
+        const isOnline = peer.status === 'ONLINE';
+
+        const card = document.createElement('div');
+        card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
+        card.onclick = () => selectConversationPeer(peer);
+
+        let previewText = 'Pinned conversation';
+        if (lastMsg) {
+            if (lastMsg.type === 'IMAGE') previewText = '📷 Photo attachment';
+            else if (lastMsg.content) previewText = lastMsg.content;
+        }
+        const timeStr = lastMsg ? formatTime(lastMsg.timestamp) : '';
+
+        card.innerHTML = `
+            <div class="contact-avatar-wrapper">
+                <img src="${peer.avatarUrl || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + peer.username}" alt="${peer.username}" class="contact-avatar">
+                <span class="status-indicator-dot ${isOnline ? 'online' : 'offline'}"></span>
+            </div>
+            <div class="contact-info">
+                <div class="contact-top">
+                    <span class="contact-name">
+                        ${escapeHtml(peer.displayName || peer.username)}
+                        <i class="fa-solid fa-thumbtack pinned-indicator" title="Pinned Chat"></i>
+                    </span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="contact-time">${timeStr}</span>
+                        <button type="button" class="pin-card-btn pinned" title="Unpin chat" onclick="togglePinChat(event, ${peer.id})">
+                            <i class="fa-solid fa-thumbtack"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="contact-bottom">
                     <span class="contact-preview">${escapeHtml(previewText)}</span>
@@ -804,6 +1064,7 @@ function renderContactsCards(users) {
     users.forEach(peer => {
         const card = document.createElement('div');
         const isOnline = peer.status === 'ONLINE';
+        const isPinned = isChatPinned(peer.id);
         card.className = `contact-card ${activePeer && activePeer.id === peer.id ? 'active' : ''}`;
         card.onclick = () => selectConversationPeer(peer);
 
@@ -814,11 +1075,19 @@ function renderContactsCards(users) {
             </div>
             <div class="contact-info">
                 <div class="contact-top">
-                    <span class="contact-name">${escapeHtml(peer.displayName || peer.username)}</span>
-                    <span class="contact-badge-pill ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+                    <span class="contact-name">
+                        ${escapeHtml(peer.displayName || peer.username)}
+                        ${isPinned ? '<i class="fa-solid fa-thumbtack pinned-indicator" title="Pinned Chat"></i>' : ''}
+                    </span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="contact-badge-pill ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+                        <button type="button" class="pin-card-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? 'Unpin chat' : 'Pin chat to top'}" onclick="togglePinChat(event, ${peer.id})">
+                            <i class="fa-solid fa-thumbtack"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="contact-bottom">
-                    <span class="contact-preview">@${escapeHtml(peer.username)}${peer.email ? ' • ' + escapeHtml(peer.email) : ''}</span>
+                    <span class="contact-preview">@${escapeHtml(peer.username)}</span>
                 </div>
             </div>
         `;
@@ -840,6 +1109,8 @@ function selectConversationPeer(peer) {
     document.getElementById('activeTargetAvatar').src = avatarUrl;
     document.getElementById('activeTargetName').textContent = peer.displayName || peer.username;
     updateActiveHeaderStatus();
+    updateActiveChatPinButton();
+    updateContactDetailsContent();
 
     // Re-render sidebar so selected item is highlighted
     renderSidebarList();
@@ -1185,6 +1456,7 @@ function sendSampleVoiceNote() {
 // Typing Indicator Handling
 function handleTyping() {
     if (!activePeer || !stompClient || !isConnected) return;
+    if (userSettings.typingBroadcast === false) return;
 
     stompClient.send('/app/chat.typing', {}, JSON.stringify({
         senderId: currentUser.id,
@@ -1212,6 +1484,521 @@ function handleTypingNotification(isTyping) {
         scrollFeedToBottom();
     } else {
         typingBar.classList.add('hidden');
+    }
+}
+
+// =========================================================
+// WHATSAPP-STYLE SETTINGS & PREFERENCES ENGINE
+// =========================================================
+
+function loadUserSettings() {
+    if (!currentUser) return;
+    try {
+        const stored = localStorage.getItem(`messiq_settings_${currentUser.id}`);
+        if (stored) {
+            userSettings = { ...userSettings, ...JSON.parse(stored) };
+        }
+    } catch (e) {
+        console.warn('Failed to load user settings', e);
+    }
+
+    // Apply chat wallpaper
+    setChatWallpaper(userSettings.wallpaper || 'celadon', false);
+
+    // Apply font size
+    setChatFontSize(userSettings.fontSize || 'md', false);
+}
+
+function saveUserSettings() {
+    if (!currentUser) return;
+    try {
+        localStorage.setItem(`messiq_settings_${currentUser.id}`, JSON.stringify(userSettings));
+    } catch (e) {
+        console.error('Failed to save user settings', e);
+    }
+}
+
+function openSettingsModal() {
+    if (!currentUser) {
+        openAuthModal('login');
+        return;
+    }
+
+    // Populate user profile info
+    const avatarUrl = currentUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.username}`;
+    const profileImg = document.getElementById('settingsProfileAvatarImg');
+    const miniAvatar = document.getElementById('settingsUserAvatarMini');
+    const nameInput = document.getElementById('settingsDisplayNameInput');
+    const userInput = document.getElementById('settingsUsernameInput');
+    const emailInput = document.getElementById('settingsEmailInput');
+    const bioInput = document.getElementById('settingsBioInput');
+    const miniName = document.getElementById('settingsUserNameMini');
+    const miniBio = document.getElementById('settingsUserBioMini');
+
+    if (profileImg) profileImg.src = avatarUrl;
+    if (miniAvatar) miniAvatar.src = avatarUrl;
+    if (nameInput) nameInput.value = currentUser.displayName || currentUser.username;
+    if (userInput) userInput.value = `@${currentUser.username}`;
+    if (emailInput) emailInput.value = currentUser.email || 'N/A';
+    if (bioInput) bioInput.value = userSettings.statusBio || 'Available • Using messiQ';
+    if (miniName) miniName.textContent = currentUser.displayName || currentUser.username;
+    if (miniBio) miniBio.textContent = userSettings.statusBio || 'Available • Using messiQ';
+
+    // Populate Privacy toggles
+    const lastSeenSelect = document.getElementById('settingLastSeen');
+    const readReceiptsToggle = document.getElementById('settingReadReceipts');
+    const liveTypingToggle = document.getElementById('settingTypingBroadcast');
+    if (lastSeenSelect) lastSeenSelect.value = userSettings.lastSeenPrivacy || 'everyone';
+    if (readReceiptsToggle) readReceiptsToggle.checked = userSettings.readReceipts !== false;
+    if (liveTypingToggle) liveTypingToggle.checked = userSettings.typingBroadcast !== false;
+
+    // Populate Chats toggles
+    const enterToSendToggle = document.getElementById('settingEnterToSend');
+    if (enterToSendToggle) enterToSendToggle.checked = userSettings.enterToSend !== false;
+
+    // Populate Notifications toggles
+    const soundToggle = document.getElementById('settingMessageSounds');
+    if (soundToggle) soundToggle.checked = userSettings.messageSounds !== false;
+
+    // Show modal
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.classList.remove('hidden');
+
+    // Default to profile tab
+    switchSettingsTab('profile');
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function handleSettingsOverlayClick(e) {
+    if (e.target.id === 'settingsModal') {
+        closeSettingsModal();
+    }
+}
+
+function switchSettingsTab(tabName) {
+    const tabs = ['profile', 'privacy', 'chats', 'notifications', 'appearance', 'about'];
+    tabs.forEach(tab => {
+        const cap = tab.charAt(0).toUpperCase() + tab.slice(1);
+        const navBtn = document.getElementById(`setTab${cap}`);
+        const panel = document.getElementById(`settingsPanel${cap}`);
+        if (navBtn) navBtn.classList.toggle('active', tab === tabName);
+        if (panel) panel.classList.toggle('hidden', tab !== tabName);
+    });
+}
+
+function setQuickBio(bioText) {
+    const bioInput = document.getElementById('settingsBioInput');
+    if (bioInput) {
+        bioInput.value = bioText;
+        showToast(`Status bio set to "${bioText}"`);
+    }
+}
+
+function saveProfileSettings() {
+    if (!currentUser) return;
+    const nameInput = document.getElementById('settingsDisplayNameInput');
+    const bioInput = document.getElementById('settingsBioInput');
+
+    if (nameInput && nameInput.value.trim()) {
+        currentUser.displayName = nameInput.value.trim();
+        localStorage.setItem('messiq_user', JSON.stringify(currentUser));
+    }
+    if (bioInput) {
+        userSettings.statusBio = bioInput.value.trim() || 'Available • Using messiQ';
+        saveUserSettings();
+    }
+
+    const miniName = document.getElementById('settingsUserNameMini');
+    const miniBio = document.getElementById('settingsUserBioMini');
+    if (miniName) miniName.textContent = currentUser.displayName;
+    if (miniBio) miniBio.textContent = userSettings.statusBio;
+
+    showToast('Profile & status updated successfully!');
+}
+
+function randomizeAvatar() {
+    if (!currentUser) return;
+    const randomSeed = Math.random().toString(36).substring(2, 9);
+    const newAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${randomSeed}`;
+    currentUser.avatarUrl = newAvatar;
+    localStorage.setItem('messiq_user', JSON.stringify(currentUser));
+
+    const profileImg = document.getElementById('settingsProfileAvatarImg');
+    const miniAvatar = document.getElementById('settingsUserAvatarMini');
+    const topAvatar = document.getElementById('topbarUserAvatar');
+    const railAvatar = document.getElementById('railUserAvatar');
+
+    if (profileImg) profileImg.src = newAvatar;
+    if (miniAvatar) miniAvatar.src = newAvatar;
+    if (topAvatar) topAvatar.src = newAvatar;
+    if (railAvatar) railAvatar.src = newAvatar;
+
+    showToast('Randomized new avatar!');
+}
+
+function updatePrivacySetting(key, val) {
+    userSettings[key] = val;
+    saveUserSettings();
+    showToast('Settings saved');
+}
+
+function setChatWallpaper(name, notify = true) {
+    userSettings.wallpaper = name;
+    saveUserSettings();
+
+    const canvas = document.querySelector('.chat-canvas');
+    if (canvas) {
+        canvas.classList.remove('wallpaper-celadon', 'wallpaper-forest', 'wallpaper-doodle', 'wallpaper-slate');
+        canvas.classList.add(`wallpaper-${name}`);
+    }
+
+    document.querySelectorAll('.wallpaper-swatch').forEach(sw => {
+        sw.classList.toggle('active', sw.classList.contains(name));
+    });
+
+    if (notify) {
+        showToast(`Chat wallpaper set to ${name.charAt(0).toUpperCase() + name.slice(1)}`);
+    }
+}
+
+function setChatFontSize(size, notify = true) {
+    userSettings.fontSize = size;
+    saveUserSettings();
+
+    document.body.classList.remove('font-sm', 'font-md', 'font-lg');
+    if (size !== 'md') {
+        document.body.classList.add(`font-${size}`);
+    }
+
+    const pillSm = document.getElementById('fontPillSm');
+    const pillMd = document.getElementById('fontPillMd');
+    const pillLg = document.getElementById('fontPillLg');
+    if (pillSm) pillSm.classList.toggle('active', size === 'sm');
+    if (pillMd) pillMd.classList.toggle('active', size === 'md');
+    if (pillLg) pillLg.classList.toggle('active', size === 'lg');
+
+    if (notify) {
+        const label = size === 'sm' ? 'Small' : size === 'lg' ? 'Large' : 'Medium';
+        showToast(`Chat font size set to ${label}`);
+    }
+}
+
+function playMessageNotificationSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+
+        // Pleasant high chime: 880Hz (A5) -> 1760Hz (A6)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, now);
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.22);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1760, now + 0.08);
+        gain2.gain.setValueAtTime(0.18, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.42);
+    } catch (e) {
+        console.warn('Audio chime warning:', e);
+    }
+}
+
+function requestDesktopNotifications() {
+    if (!('Notification' in window)) {
+        showToast('Desktop notifications not supported in this browser');
+        return;
+    }
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            userSettings.desktopNotifications = true;
+            saveUserSettings();
+            showToast('Desktop notifications enabled!');
+            new Notification('messiQ', {
+                body: 'Notifications are active and will notify you of incoming messages.',
+                icon: 'https://api.dicebear.com/7.x/bottts/svg?seed=messiq'
+            });
+        } else {
+            userSettings.desktopNotifications = false;
+            saveUserSettings();
+            showToast('Desktop notifications permission denied');
+        }
+    });
+}
+
+function selectThemeMode(mode) {
+    applyTheme(mode);
+    localStorage.setItem('messiq_theme', mode);
+    showToast(`Switched to ${mode === 'theme-dark' ? 'Dark Mode' : 'Light Mode'}`);
+}
+
+function clearLocalChatCache() {
+    if (confirm('Are you sure you want to clear your local chat cache? This will refresh your conversations list from the server.')) {
+        loadConversationsList();
+        if (activePeer) {
+            loadMessageHistory();
+        }
+        showToast('Local chat cache refreshed');
+    }
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('appToast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+    }, 2600);
+}
+
+// =========================================================
+// PROFILE POPOVER ENGINE (PROPER SIGN OUT BUTTON)
+// =========================================================
+
+function toggleProfilePopover(e, source = 'rail') {
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
+    const popover = document.getElementById('profilePopover');
+    if (!popover || !currentUser) return;
+
+    if (!popover.classList.contains('hidden') && popover.dataset.source === source) {
+        closeProfilePopover();
+        return;
+    }
+
+    // Populate user profile info in popover
+    const avatarUrl = currentUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.username}`;
+    const avatarEl = document.getElementById('popoverUserAvatar');
+    const nameEl = document.getElementById('popoverDisplayName');
+    const userEl = document.getElementById('popoverUsername');
+    const bioEl = document.getElementById('popoverBioText');
+
+    if (avatarEl) avatarEl.src = avatarUrl;
+    if (nameEl) nameEl.textContent = currentUser.displayName || currentUser.username;
+    if (userEl) userEl.textContent = `@${currentUser.username}`;
+    if (bioEl) bioEl.textContent = userSettings.statusBio || 'Available • Using messiQ';
+
+    popover.classList.remove('hidden', 'from-rail', 'from-topbar');
+    popover.classList.add(source === 'rail' ? 'from-rail' : 'from-topbar');
+    popover.dataset.source = source;
+}
+
+function closeProfilePopover() {
+    const popover = document.getElementById('profilePopover');
+    if (popover) {
+        popover.classList.add('hidden');
+    }
+}
+
+function openSettingsModalFromPopover(tab = 'profile') {
+    closeProfilePopover();
+    openSettingsModal();
+    switchSettingsTab(tab);
+}
+
+// =========================================================
+// WHATSAPP-STYLE CONTACT DETAILS PANE
+// =========================================================
+
+function toggleContactDetailsPane() {
+    if (!activePeer) {
+        showToast('Select a conversation to view contact info');
+        return;
+    }
+    const pane = document.getElementById('chatDetailsPane');
+    if (!pane) return;
+
+    if (pane.classList.contains('hidden')) {
+        openContactDetailsPane();
+    } else {
+        closeContactDetailsPane();
+    }
+}
+
+function openContactDetailsPane() {
+    if (!activePeer) return;
+    const pane = document.getElementById('chatDetailsPane');
+    const btn = document.getElementById('chatDetailsBtn');
+    if (pane) pane.classList.remove('hidden');
+    if (btn) btn.classList.add('active');
+    updateContactDetailsContent();
+}
+
+function closeContactDetailsPane() {
+    const pane = document.getElementById('chatDetailsPane');
+    const btn = document.getElementById('chatDetailsBtn');
+    if (pane) pane.classList.add('hidden');
+    if (btn) btn.classList.remove('active');
+}
+
+function updateContactDetailsContent() {
+    if (!activePeer) return;
+    const pane = document.getElementById('chatDetailsPane');
+    if (!pane || pane.classList.contains('hidden')) return;
+
+    const avatarUrl = activePeer.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${activePeer.username}`;
+    const isOnline = activePeer.status === 'ONLINE';
+
+    const avatarImg = document.getElementById('detailsAvatar');
+    const nameEl = document.getElementById('detailsName');
+    const userEl = document.getElementById('detailsUsername');
+    const statusDot = document.getElementById('detailsStatusDot');
+    const statusText = document.getElementById('detailsStatusText');
+    const pinBadge = document.getElementById('detailsPinStatusBadge');
+    const blockLabel = document.getElementById('detailsBlockLabel');
+
+    if (avatarImg) avatarImg.src = avatarUrl;
+    if (nameEl) nameEl.textContent = activePeer.displayName || activePeer.username;
+    if (userEl) userEl.textContent = `@${activePeer.username}`;
+
+    if (statusDot) statusDot.className = `status-indicator-dot ${isOnline ? 'online' : 'offline'}`;
+    if (statusText) {
+        statusText.textContent = isOnline ? 'Online now • Available' : 'Offline • Last seen recently';
+        statusText.className = `details-contact-status ${isOnline ? '' : 'offline'}`;
+    }
+
+    if (pinBadge) {
+        const pinned = isChatPinned(activePeer.id);
+        pinBadge.textContent = pinned ? 'Pinned' : 'No';
+        pinBadge.style.color = pinned ? 'var(--online-green)' : 'var(--composer-meta-text)';
+    }
+
+    if (blockLabel) {
+        blockLabel.textContent = `Block @${activePeer.username}`;
+    }
+
+    // Populate media thumbnails
+    populateDetailsMediaGrid();
+}
+
+async function populateDetailsMediaGrid() {
+    const grid = document.getElementById('detailsMediaGrid');
+    const countEl = document.getElementById('detailsMediaCount');
+    if (!grid || !activePeer || !currentUser) return;
+
+    grid.innerHTML = '';
+    try {
+        const res = await fetch(`/api/messages/history?user1=${currentUser.id}&user2=${activePeer.id}`);
+        const data = await res.json();
+        if (data.success) {
+            const mediaMsgs = data.data.filter(m => m.mediaUrl && (m.type === 'IMAGE' || m.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)));
+            if (countEl) countEl.textContent = mediaMsgs.length;
+
+            if (mediaMsgs.length === 0) {
+                grid.innerHTML = `<div class="details-media-empty">No shared media yet</div>`;
+            } else {
+                mediaMsgs.slice(-6).reverse().forEach(m => {
+                    const thumb = document.createElement('div');
+                    thumb.className = 'details-media-thumb';
+                    thumb.innerHTML = `<img src="${m.mediaUrl}" alt="Media" onclick="window.open('${m.mediaUrl}', '_blank')">`;
+                    grid.appendChild(thumb);
+                });
+            }
+        }
+    } catch (e) {
+        grid.innerHTML = `<div class="details-media-empty">Unable to load media</div>`;
+    }
+}
+
+function toggleMuteChat(muted) {
+    showToast(muted ? `Muted notifications for @${activePeer ? activePeer.username : 'contact'}` : 'Notifications unmuted');
+}
+
+function blockContactAction() {
+    if (!activePeer) return;
+    showToast(`@${activePeer.username} has been blocked`);
+}
+
+function reportContactAction() {
+    if (!activePeer) return;
+    showToast(`Report submitted for @${activePeer.username}`);
+}
+
+function clearCurrentChatAction() {
+    if (!activePeer) return;
+    const feed = document.getElementById('messageFeed');
+    if (feed) {
+        feed.innerHTML = `
+            <div class="date-divider"><span>Today</span></div>
+            <div style="text-align:center; padding:40px 20px; color:var(--composer-meta-text); font-size:13px;">
+                <i class="fa-regular fa-comment" style="font-size:24px; margin-bottom:8px; display:block; opacity:0.6;"></i>
+                Chat cleared. Say hello to start fresh!
+            </div>`;
+    }
+    showToast('Chat history cleared');
+}
+
+function viewAllSharedMedia() {
+    showToast('All media photos previewed below');
+}
+
+function initGlobalKeyListeners() {
+    // Escape key closes modals and popovers
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeProfilePopover();
+            closeContactDetailsPane();
+            closeSettingsModal();
+            closeAuthModal();
+        }
+    });
+
+    // Click outside listener for profile popover
+    document.addEventListener('click', (e) => {
+        const popover = document.getElementById('profilePopover');
+        if (popover && !popover.classList.contains('hidden')) {
+            if (!popover.contains(e.target) && !e.target.closest('.rail-user-avatar') && !e.target.closest('.topbar-avatar')) {
+                closeProfilePopover();
+            }
+        }
+    });
+
+    // Enter is Send handling in chat message input
+    const chatInput = document.getElementById('chatMessageInput');
+    if (chatInput) {
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (userSettings.enterToSend === false) {
+                    // Enter is Send is disabled: prevent auto-submit
+                    e.preventDefault();
+                    showToast('Enter is Send is disabled. Click the send button.');
+                }
+            }
+        });
+    }
+}
+
+function triggerCallNotification(type) {
+    showToast(`Initiating encrypted ${type} call...`);
+}
+
+function focusChatSearch() {
+    const searchInput = document.getElementById('userSearchInput');
+    if (searchInput) {
+        searchInput.focus();
+        showToast('Search active');
     }
 }
 

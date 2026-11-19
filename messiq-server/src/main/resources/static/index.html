@@ -451,7 +451,7 @@
                     <span id="topWsText">All systems connected</span>
                 </div>
                 <div class="topbar-date" id="topbarDate">Thu, October 29</div>
-                <div class="topbar-avatar" onclick="handleLogout()" title="Click to Sign Out">
+                <div class="topbar-avatar" onclick="toggleProfilePopover(event, 'topbar')" title="Account Profile & Sign Out">
                     <img id="topbarUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="User">
                 </div>
             </div>
@@ -540,6 +540,387 @@
         </div>
 
         <!-- ========================================================= -->
+        <!-- WHATSAPP-STYLE SETTINGS MODAL                             -->
+        <!-- ========================================================= -->
+        <div id="settingsModal" class="settings-overlay hidden" onclick="handleSettingsOverlayClick(event)">
+            <div class="settings-card" onclick="event.stopPropagation()">
+                <!-- Settings Header -->
+                <div class="settings-card-header">
+                    <div class="settings-card-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <h3>Settings</h3>
+                    </div>
+                    <button type="button" class="settings-close-btn" onclick="closeSettingsModal()" title="Close Settings (Esc)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Settings 2-Column Body -->
+                <div class="settings-card-body">
+                    <!-- Left Tab Rail -->
+                    <aside class="settings-sidebar">
+                        <div class="settings-user-card" onclick="switchSettingsTab('profile')">
+                            <img id="settingsUserAvatarMini" src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="Avatar">
+                            <div class="settings-user-info">
+                                <h4 id="settingsUserNameMini">Hridyansh Sati</h4>
+                                <p id="settingsUserBioMini">Available • Using messiQ</p>
+                            </div>
+                        </div>
+
+                        <nav class="settings-tabs-list">
+                            <button id="setTabProfile" class="settings-nav-item active" onclick="switchSettingsTab('profile')">
+                                <i class="fa-regular fa-user"></i>
+                                <span>Profile & Account</span>
+                            </button>
+                            <button id="setTabPrivacy" class="settings-nav-item" onclick="switchSettingsTab('privacy')">
+                                <i class="fa-solid fa-lock"></i>
+                                <span>Privacy</span>
+                            </button>
+                            <button id="setTabChats" class="settings-nav-item" onclick="switchSettingsTab('chats')">
+                                <i class="fa-regular fa-comment-dots"></i>
+                                <span>Chats & Wallpaper</span>
+                            </button>
+                            <button id="setTabNotifications" class="settings-nav-item" onclick="switchSettingsTab('notifications')">
+                                <i class="fa-regular fa-bell"></i>
+                                <span>Notifications & Sounds</span>
+                            </button>
+                            <button id="setTabAppearance" class="settings-nav-item" onclick="switchSettingsTab('appearance')">
+                                <i class="fa-solid fa-circle-half-stroke"></i>
+                                <span>Theme & Appearance</span>
+                            </button>
+                            <button id="setTabAbout" class="settings-nav-item" onclick="switchSettingsTab('about')">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>About messiQ</span>
+                            </button>
+                        </nav>
+                    </aside>
+
+                    <!-- Right Tab Content Panel -->
+                    <main class="settings-panel">
+                        <!-- TAB 1: Profile & Account -->
+                        <div id="settingsPanelProfile" class="settings-panel-section">
+                            <div class="panel-header">
+                                <h4>Profile Information</h4>
+                                <p>Manage your public identity, display name, and WhatsApp-style status bio.</p>
+                            </div>
+
+                            <div class="profile-avatar-row">
+                                <div class="profile-avatar-large">
+                                    <img id="settingsProfileAvatarImg" src="" alt="Avatar">
+                                </div>
+                                <div class="profile-avatar-actions">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="randomizeAvatar()">
+                                        <i class="fa-solid fa-shuffle"></i>
+                                        <span>Randomize Avatar</span>
+                                    </button>
+                                    <span class="field-hint">Generated dynamically via Dicebear Vector Engine.</span>
+                                </div>
+                            </div>
+
+                            <div class="settings-form-group">
+                                <label for="settingsDisplayNameInput"><i class="fa-regular fa-id-badge"></i> Your Name</label>
+                                <input type="text" id="settingsDisplayNameInput" maxlength="40" placeholder="Your Display Name">
+                                <span class="field-hint">This name will be visible to your messiQ contacts.</span>
+                            </div>
+
+                            <div class="settings-form-group">
+                                <label><i class="fa-regular fa-user"></i> Username</label>
+                                <input type="text" id="settingsUsernameInput" disabled class="input-disabled">
+                                <span class="field-hint">Usernames are unique and cannot be modified.</span>
+                            </div>
+
+                            <div class="settings-form-group">
+                                <label><i class="fa-regular fa-envelope"></i> Email Address</label>
+                                <input type="email" id="settingsEmailInput" disabled class="input-disabled">
+                            </div>
+
+                            <div class="settings-form-group">
+                                <label for="settingsBioInput"><i class="fa-regular fa-message"></i> About / Status</label>
+                                <input type="text" id="settingsBioInput" maxlength="80" placeholder="e.g. Available • At work • messiQ only">
+                                <div class="status-quick-chips">
+                                    <button type="button" class="chip" onclick="setQuickBio('Available')">Available</button>
+                                    <button type="button" class="chip" onclick="setQuickBio('Busy')">Busy</button>
+                                    <button type="button" class="chip" onclick="setQuickBio('At work')">At work</button>
+                                    <button type="button" class="chip" onclick="setQuickBio('In a meeting')">In a meeting</button>
+                                    <button type="button" class="chip" onclick="setQuickBio('Can\'t talk, messiQ only')">messiQ only</button>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" onclick="saveProfileSettings()">
+                                <i class="fa-solid fa-check"></i>
+                                <span>Save Changes</span>
+                            </button>
+                        </div>
+
+                        <!-- TAB 2: Privacy (WhatsApp counterpart) -->
+                        <div id="settingsPanelPrivacy" class="settings-panel-section hidden">
+                            <div class="panel-header">
+                                <h4>Privacy & Security</h4>
+                                <p>Control who can see your activity and read receipts.</p>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Last Seen & Online</strong>
+                                    <span>Control who can see your online presence and last active time.</span>
+                                </div>
+                                <select id="settingLastSeen" class="settings-select" onchange="updatePrivacySetting('lastSeenPrivacy', this.value)">
+                                    <option value="everyone">Everyone</option>
+                                    <option value="contacts">My Contacts</option>
+                                    <option value="nobody">Nobody</option>
+                                </select>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Read Receipts</strong>
+                                    <span>If turned off, you won't send or see double checkmarks (<span class="read-marks">✓✓</span>).</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="settingReadReceipts" checked onchange="updatePrivacySetting('readReceipts', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Live Typing Indicators</strong>
+                                    <span>Show when you are typing a message in active chats.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="settingTypingBroadcast" checked onchange="updatePrivacySetting('typingBroadcast', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="privacy-encryption-banner">
+                                <i class="fa-solid fa-lock"></i>
+                                <div>
+                                    <strong>End-to-End Encryption</strong>
+                                    <p>Your messages and shared media are end-to-end encrypted with STOMP protocol. No one outside of this chat can inspect your messages.</p>
+                                </div>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Blocked Contacts</strong>
+                                    <span>0 contacts blocked</span>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="showToast('No blocked contacts')">Manage</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: Chats & Wallpaper (WhatsApp counterpart) -->
+                        <div id="settingsPanelChats" class="settings-panel-section hidden">
+                            <div class="panel-header">
+                                <h4>Chats & Wallpaper</h4>
+                                <p>Personalize your chat canvas wallpaper and sending behavior.</p>
+                            </div>
+
+                            <div class="settings-form-group">
+                                <label><i class="fa-solid fa-image"></i> Chat Canvas Wallpaper</label>
+                                <div class="wallpaper-swatches">
+                                    <div class="wallpaper-swatch celadon active" onclick="setChatWallpaper('celadon')" title="Celadon Warm (Default)">
+                                        <span class="swatch-name">Celadon</span>
+                                    </div>
+                                    <div class="wallpaper-swatch forest" onclick="setChatWallpaper('forest')" title="Forest Charcoal">
+                                        <span class="swatch-name">Forest</span>
+                                    </div>
+                                    <div class="wallpaper-swatch doodle" onclick="setChatWallpaper('doodle')" title="WhatsApp Classic Doodle">
+                                        <span class="swatch-name">Doodle</span>
+                                    </div>
+                                    <div class="wallpaper-swatch slate" onclick="setChatWallpaper('slate')" title="Soft Slate">
+                                        <span class="swatch-name">Slate</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Enter is Send</strong>
+                                    <span>Pressing Enter key sends your message. Shift + Enter adds a new line.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="settingEnterToSend" checked onchange="updatePrivacySetting('enterToSend', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Chat Font Size</strong>
+                                    <span>Adjust text size inside chat bubbles.</span>
+                                </div>
+                                <div class="font-size-pills">
+                                    <button type="button" class="font-pill" id="fontPillSm" onclick="setChatFontSize('sm')">Small</button>
+                                    <button type="button" class="font-pill active" id="fontPillMd" onclick="setChatFontSize('md')">Medium</button>
+                                    <button type="button" class="font-pill" id="fontPillLg" onclick="setChatFontSize('lg')">Large</button>
+                                </div>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Clear Chat History</strong>
+                                    <span>Clear cached local messages from your browser storage.</span>
+                                </div>
+                                <button type="button" class="btn btn-danger-outline btn-sm" onclick="clearLocalChatCache()">Clear Cache</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB 4: Notifications & Sounds (WhatsApp counterpart) -->
+                        <div id="settingsPanelNotifications" class="settings-panel-section hidden">
+                            <div class="panel-header">
+                                <h4>Notifications & Sounds</h4>
+                                <p>Control audio chimes and incoming message alerts.</p>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Message Sounds</strong>
+                                    <span>Play a soft audio chime when a message is received.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="settingMessageSounds" checked onchange="updatePrivacySetting('messageSounds', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Test Sound</strong>
+                                    <span>Listen to the synthesized messiQ notification chime.</span>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="playMessageNotificationSound()">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                    <span>Play Chime</span>
+                                </button>
+                            </div>
+
+                            <div class="settings-row-item">
+                                <div class="setting-text">
+                                    <strong>Desktop Notifications</strong>
+                                    <span>Show browser system notifications when messiQ is in background.</span>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="requestDesktopNotifications()">Enable</button>
+                            </div>
+                        </div>
+
+                        <!-- TAB 5: Theme & Appearance -->
+                        <div id="settingsPanelAppearance" class="settings-panel-section hidden">
+                            <div class="panel-header">
+                                <h4>Theme & Appearance</h4>
+                                <p>Choose between light and dark visual styles.</p>
+                            </div>
+
+                            <div class="theme-cards-grid">
+                                <div class="theme-card" onclick="selectThemeMode('theme-light')">
+                                    <div class="theme-card-preview light-preview">
+                                        <div class="preview-bar"></div>
+                                        <div class="preview-bubble incoming"></div>
+                                        <div class="preview-bubble outgoing"></div>
+                                    </div>
+                                    <div class="theme-card-label">
+                                        <i class="fa-solid fa-sun"></i>
+                                        <span>Light (Warm Celadon)</span>
+                                    </div>
+                                </div>
+                                <div class="theme-card" onclick="selectThemeMode('theme-dark')">
+                                    <div class="theme-card-preview dark-preview">
+                                        <div class="preview-bar"></div>
+                                        <div class="preview-bubble incoming"></div>
+                                        <div class="preview-bubble outgoing"></div>
+                                    </div>
+                                    <div class="theme-card-label">
+                                        <i class="fa-solid fa-moon"></i>
+                                        <span>Dark (Obsidian Forest)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 6: About messiQ -->
+                        <div id="settingsPanelAbout" class="settings-panel-section hidden">
+                            <div class="about-hero-box">
+                                <div class="brand-badge-icon lg">
+                                    <i class="fa-solid fa-bolt"></i>
+                                </div>
+                                <h3>messi<strong>Q</strong></h3>
+                                <p class="about-ver">Version 1.0.0 (BCA Academic Edition)</p>
+                                <p class="about-sub">Real-Time Messenger Application with Spring Boot 3 & WebSocket STOMP.</p>
+                            </div>
+
+                            <div class="about-details-list">
+                                <div class="about-item">
+                                    <span>Institution</span>
+                                    <strong>Graphic Era Hill University, Bhimtal</strong>
+                                </div>
+                                <div class="about-item">
+                                    <span>Supervisor</span>
+                                    <strong>Mr. Janmejay Pant (Assistant Professor)</strong>
+                                </div>
+                                <div class="about-item">
+                                    <span>Group No.</span>
+                                    <strong>Group 24 (Academic Year Sep-2026)</strong>
+                                </div>
+                                <div class="about-item">
+                                    <span>Contributors</span>
+                                    <strong>Hridyansh Sati • Megha Dhami • Hrithik Bashera</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Menu Dropdown / Popover (Proper Sign Out Button, No JS Alerts) -->
+        <div id="profilePopover" class="profile-popover hidden" onclick="event.stopPropagation()">
+            <div class="popover-profile-header">
+                <img id="popoverUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="Avatar" class="popover-avatar">
+                <div class="popover-user-meta">
+                    <h4 id="popoverDisplayName">Hridyansh Sati</h4>
+                    <p id="popoverUsername">@hridyansh</p>
+                    <span class="popover-status-badge online"><i class="fa-solid fa-circle"></i> Online</span>
+                </div>
+            </div>
+
+            <div class="popover-bio-box">
+                <span class="popover-bio-label"><i class="fa-regular fa-comment-dots"></i> Status</span>
+                <p id="popoverBioText">Available • Using messiQ</p>
+            </div>
+
+            <div class="popover-menu-list">
+                <button type="button" class="popover-item" onclick="openSettingsModalFromPopover('profile')">
+                    <i class="fa-regular fa-user"></i>
+                    <span>Profile & Account</span>
+                </button>
+                <button type="button" class="popover-item" onclick="openSettingsModalFromPopover('chats')">
+                    <i class="fa-regular fa-comment-dots"></i>
+                    <span>Chats & Wallpaper</span>
+                </button>
+                <button type="button" class="popover-item" onclick="openSettingsModalFromPopover('privacy')">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Privacy Settings</span>
+                </button>
+                <button type="button" class="popover-item" onclick="toggleTheme(); closeProfilePopover();">
+                    <i class="fa-solid fa-circle-half-stroke"></i>
+                    <span>Switch Theme</span>
+                </button>
+                
+                <div class="popover-divider"></div>
+
+                <!-- PROPER SIGN OUT BUTTON -->
+                <button type="button" class="popover-item logout-btn" onclick="executeSignOut()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Sign Out</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Toast Notification -->
+        <div id="appToast" class="app-toast hidden"></div>
+
+        <!-- ========================================================= -->
         <!-- 5. MAIN MESSENGER WORKSPACE (Active Dashboard Only)       -->
         <!-- ========================================================= -->
         <div id="mainScreen" class="main-workspace hidden">
@@ -547,11 +928,9 @@
             <!-- 1. SLIM LEFT ICON NAVIGATION RAIL -->
             <nav class="nav-rail">
                 <div class="rail-top">
-                    <button class="rail-btn" title="Dashboard / Apps"><i class="fa-solid fa-grip"></i></button>
                     <button id="railBtnMessages" class="rail-btn active" title="Messages" onclick="switchToMessagesView()"><i class="fa-solid fa-comment"></i></button>
                     <button id="railBtnContacts" class="rail-btn" title="Contacts (All Users)" onclick="switchToContactsView()"><i class="fa-solid fa-user-group"></i></button>
-                    <button class="rail-btn" title="Bookmarks"><i class="fa-regular fa-bookmark"></i></button>
-                    <button class="rail-btn" title="Notifications"><i class="fa-regular fa-bell"></i></button>
+                    <button id="railBtnPinned" class="rail-btn" title="Pinned Chats" onclick="switchToPinnedView()"><i class="fa-solid fa-thumbtack"></i></button>
                 </div>
 
                 <div class="rail-bottom">
@@ -559,10 +938,9 @@
                     <button id="themeToggleBtn" class="rail-btn theme-toggle" title="Toggle Light / Dark Mode" onclick="toggleTheme()">
                         <i id="themeIcon" class="fa-solid fa-moon"></i>
                     </button>
-                    <button class="rail-btn" title="Help & Docs"><i class="fa-regular fa-circle-question"></i></button>
-                    <button class="rail-btn" title="Settings"><i class="fa-solid fa-sliders"></i></button>
+                    <button id="railBtnSettings" class="rail-btn" title="Settings" onclick="openSettingsModal()"><i class="fa-solid fa-sliders"></i></button>
                     
-                    <div class="rail-user-avatar" onclick="handleLogout()" title="Sign Out">
+                    <div class="rail-user-avatar" onclick="toggleProfilePopover(event, 'rail')" title="Account Profile & Sign Out">
                         <img id="railUserAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=hridyansh" alt="User Avatar">
                         <span id="railUserStatusDot" class="status-indicator-dot online"></span>
                     </div>
@@ -660,7 +1038,7 @@
                     
                     <!-- Chat Header -->
                     <header class="chat-header">
-                        <div class="chat-peer-profile">
+                        <div class="chat-peer-profile" onclick="toggleContactDetailsPane()" style="cursor:pointer;" title="Click to view Contact Info">
                             <div class="avatar-container">
                                 <img id="activeTargetAvatar" src="" alt="Target Avatar" class="peer-avatar">
                                 <span id="activeTargetStatusDot" class="status-indicator-dot online"></span>
@@ -671,12 +1049,10 @@
                             </div>
                         </div>
 
-                        <!-- Top Action Buttons -->
+                        <!-- Top Action Buttons (Phone, Video, and Search removed) -->
                         <div class="chat-header-actions">
-                            <button class="header-action-btn" title="Voice Call"><i class="fa-solid fa-phone"></i></button>
-                            <button class="header-action-btn" title="Video Call"><i class="fa-solid fa-video"></i></button>
-                            <button class="header-action-btn" title="Search in Chat"><i class="fa-solid fa-magnifying-glass"></i></button>
-                            <button class="header-action-btn" title="Details / Toggle Panel" onclick="refreshActiveConversation()"><i class="fa-solid fa-table-columns"></i></button>
+                            <button id="chatPinHeaderBtn" class="header-action-btn" title="Pin / Unpin Conversation" onclick="togglePinActiveChat()"><i class="fa-solid fa-thumbtack"></i></button>
+                            <button id="chatDetailsBtn" class="header-action-btn" title="Contact Info" onclick="toggleContactDetailsPane()"><i class="fa-solid fa-circle-info"></i></button>
                         </div>
                     </header>
 
@@ -749,6 +1125,105 @@
 
                 </div>
             </main>
+
+            <!-- 4. WHATSAPP-STYLE CONTACT DETAILS PANE (Right-side Drawer) -->
+            <aside id="chatDetailsPane" class="chat-details-pane hidden">
+                <!-- Header -->
+                <div class="details-header">
+                    <button type="button" class="details-close-btn" onclick="closeContactDetailsPane()" title="Close Contact Info">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    <h3>Contact info</h3>
+                </div>
+
+                <!-- Scrollable Body -->
+                <div class="details-body">
+                    <!-- 1. Hero Profile Card -->
+                    <div class="details-section details-profile-hero">
+                        <div class="details-avatar-large-wrapper">
+                            <img id="detailsAvatar" src="" alt="Contact Avatar" class="details-avatar-large">
+                            <span id="detailsStatusDot" class="status-indicator-dot online"></span>
+                        </div>
+                        <h2 id="detailsName" class="details-contact-name">User</h2>
+                        <p id="detailsUsername" class="details-contact-handle">@username</p>
+                        <p id="detailsStatusText" class="details-contact-status">Online now</p>
+                    </div>
+
+                    <!-- 2. About / Status Bio Section (WhatsApp counterpart) -->
+                    <div class="details-section">
+                        <span class="details-section-label">About</span>
+                        <div class="details-about-card">
+                            <p id="detailsBioText" class="details-bio-text">Available • Using messiQ</p>
+                            <span class="details-bio-date">Active on messiQ</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Media, links and docs Section (WhatsApp counterpart) -->
+                    <div class="details-section">
+                        <div class="details-section-row" onclick="viewAllSharedMedia()">
+                            <div class="details-section-title">
+                                <i class="fa-regular fa-image"></i>
+                                <span>Media, links and docs</span>
+                            </div>
+                            <div class="details-section-meta">
+                                <span id="detailsMediaCount">0</span>
+                                <i class="fa-solid fa-chevron-right"></i>
+                            </div>
+                        </div>
+                        <div id="detailsMediaGrid" class="details-media-grid">
+                            <!-- Populated with photos from the conversation -->
+                        </div>
+                    </div>
+
+                    <!-- 4. Chat Settings & Security (WhatsApp counterpart) -->
+                    <div class="details-section">
+                        <div class="details-setting-row">
+                            <div class="setting-icon-label">
+                                <i class="fa-regular fa-bell-slash"></i>
+                                <span>Mute notifications</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="detailsMuteToggle" onchange="toggleMuteChat(this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="details-setting-row" onclick="togglePinActiveChat()">
+                            <div class="setting-icon-label">
+                                <i class="fa-solid fa-thumbtack"></i>
+                                <span>Pinned chat</span>
+                            </div>
+                            <span id="detailsPinStatusBadge" class="details-pill-badge">No</span>
+                        </div>
+
+                        <div class="details-setting-row">
+                            <div class="setting-icon-label">
+                                <i class="fa-solid fa-lock"></i>
+                                <div>
+                                    <span>Encryption</span>
+                                    <p class="setting-subtext">Messages and calls are end-to-end encrypted. Tap to verify.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Danger / Safety Actions (WhatsApp counterpart) -->
+                    <div class="details-section details-danger-section">
+                        <button type="button" class="details-action-btn danger" onclick="blockContactAction()">
+                            <i class="fa-solid fa-ban"></i>
+                            <span id="detailsBlockLabel">Block Contact</span>
+                        </button>
+                        <button type="button" class="details-action-btn danger" onclick="reportContactAction()">
+                            <i class="fa-solid fa-thumbs-down"></i>
+                            <span>Report Contact</span>
+                        </button>
+                        <button type="button" class="details-action-btn danger" onclick="clearCurrentChatAction()">
+                            <i class="fa-regular fa-trash-can"></i>
+                            <span>Clear Chat History</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
 
