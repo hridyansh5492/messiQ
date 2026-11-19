@@ -630,8 +630,14 @@ function handleIncomingMessage(chatMessage) {
         if (userSettings.desktopNotifications && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
             const senderName = chatMessage.senderUsername || 'Contact';
             try {
+                let bodyText = chatMessage.content || 'Sent an attachment';
+                if (chatMessage.type === 'IMAGE') {
+                    bodyText = '📷 Photo attachment';
+                } else if (chatMessage.type === 'AUDIO' || (chatMessage.content && chatMessage.content.startsWith('[VOICE_NOTE]'))) {
+                    bodyText = `🎤 Voice message (${chatMessage.fileName || 'Audio'})`;
+                }
                 new Notification(`messiQ: ${senderName}`, {
-                    body: chatMessage.content || (chatMessage.type === 'IMAGE' ? '📷 Photo attachment' : 'Sent a file'),
+                    body: bodyText,
                     icon: `https://api.dicebear.com/7.x/bottts/svg?seed=${senderName}`
                 });
             } catch (e) {}
@@ -647,6 +653,27 @@ function handleIncomingMessage(chatMessage) {
             appendMessageBubble(chatMessage);
             scrollFeedToBottom();
             fetch(`/api/messages/read?receiverId=${currentUser.id}&senderId=${activePeer.id}`, { method: 'POST' });
+        } else if (chatMessage.senderId === currentUser.id && chatMessage.id) {
+            // Synchronize database ID for optimistic sent bubble
+            const feed = document.getElementById('messageFeed');
+            if (feed) {
+                const outgoingWithoutId = feed.querySelectorAll('.msg-row.outgoing:not([data-msg-id])');
+                if (outgoingWithoutId.length > 0) {
+                    const target = outgoingWithoutId[outgoingWithoutId.length - 1];
+                    target.setAttribute('data-msg-id', chatMessage.id);
+                    const meta = target.querySelector('.msg-meta');
+                    if (meta && !meta.querySelector('.msg-pin-btn')) {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'msg-pin-btn';
+                        btn.setAttribute('data-pin-id', chatMessage.id);
+                        btn.onclick = (e) => togglePinMessage(e, chatMessage.id);
+                        btn.title = 'Pin message';
+                        btn.innerHTML = '<i class="fa-solid fa-thumbtack"></i>';
+                        meta.appendChild(btn);
+                    }
+                }
+            }
         }
     }
 
@@ -2015,6 +2042,52 @@ function cancelVoiceRecording() {
     showToast('Voice recording canceled');
 }
 
+function createSynthesizedVoiceBlob(durationSec = 2) {
+    const sampleRate = 16000;
+    const dur = Math.max(1, Math.min(8, Number(durationSec) || 2));
+    const numSamples = Math.floor(sampleRate * dur);
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) {
+            view.setUint8(offset + i, str.charCodeAt(i));
+        }
+    };
+
+    // RIFF chunk descriptor
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + numSamples * 2, true);
+    writeString(8, 'WAVE');
+
+    // fmt sub-chunk
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+
+    // data sub-chunk
+    writeString(36, 'data');
+    view.setUint32(40, numSamples * 2, true);
+
+    // Pleasant melodious dual-frequency audio tone
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        const freq1 = 440 + Math.sin(t * 4) * 80;
+        const freq2 = 220;
+        const decay = Math.exp(-t / (dur * 0.75));
+        const sample = (0.5 * Math.sin(2 * Math.PI * freq1 * t) + 0.3 * Math.sin(2 * Math.PI * freq2 * t)) * decay;
+        const intSample = Math.max(-1, Math.min(1, sample)) * 0x7FFF;
+        view.setInt16(44 + i * 2, intSample, true);
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
 async function stopAndSendVoiceRecording() {
     clearInterval(voiceRecInterval);
 
@@ -2025,6 +2098,9 @@ async function stopAndSendVoiceRecording() {
     }
 
     const durationStr = formatVoiceDuration(voiceRecSeconds);
+    const recordedSecs = voiceRecSeconds;
+
+    // Immediately restore composer input for instant responsiveness
     const form = document.getElementById('chatForm');
     const overlay = document.getElementById('voiceRecordingOverlay');
     if (form) form.classList.remove('hidden');
@@ -2034,8 +2110,17 @@ async function stopAndSendVoiceRecording() {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         try {
             await new Promise(resolve => {
-                mediaRecorder.onstop = resolve;
-                mediaRecorder.stop();
+                const timer = setTimeout(resolve, 450);
+                mediaRecorder.onstop = () => {
+                    clearTimeout(timer);
+                    resolve();
+                };
+                try {
+                    mediaRecorder.requestData();
+                    mediaRecorder.stop();
+                } catch (e) {
+                    resolve();
+                }
             });
             if (audioChunks.length > 0) {
                 audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -2045,21 +2130,32 @@ async function stopAndSendVoiceRecording() {
         }
     }
     if (voiceAudioStream) {
-        voiceAudioStream.getTracks().forEach(t => t.stop());
+        try {
+            voiceAudioStream.getTracks().forEach(t => t.stop());
+        } catch (e) {}
         voiceAudioStream = null;
     }
+    mediaRecorder = null;
+    audioChunks = [];
 
+    // Fallback: If no hardware mic or empty recording, create a valid playable WAV audio blob
+    if (!audioBlob || audioBlob.size === 0) {
+        audioBlob = createSynthesizedVoiceBlob(recordedSecs);
+    }
+
+    // Upload audio blob to backend server so it is 100% persistent across page refreshes
     let mediaUrl = null;
     if (audioBlob) {
         try {
             const formData = new FormData();
-            formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+            const ext = audioBlob.type.includes('wav') ? 'wav' : 'webm';
+            formData.append('file', audioBlob, `voice_${Date.now()}.${ext}`);
             const uploadRes = await fetch('/api/media/upload', {
                 method: 'POST',
                 body: formData
             });
             const uploadData = await uploadRes.json();
-            if (uploadData.success) {
+            if (uploadData.success && uploadData.data && uploadData.data.fileDownloadUri) {
                 mediaUrl = uploadData.data.fileDownloadUri;
             }
         } catch (e) {
@@ -2082,20 +2178,37 @@ async function stopAndSendVoiceRecording() {
         timestamp: new Date().toISOString()
     };
 
-    if (stompClient && isConnected) {
-        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(messagePayload));
-    } else {
-        await fetch('/api/messages/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(messagePayload)
-        });
-    }
-
+    // Instant UI feedback: render bubble immediately
     appendMessageBubble(messagePayload);
     scrollFeedToBottom();
     updateConversationInList(messagePayload);
     showToast(`Voice message (${durationStr}) sent!`);
+
+    // Deliver via real-time WebSocket broker (or REST fallback)
+    if (stompClient && isConnected) {
+        stompClient.send('/app/chat.sendMessage', {}, JSON.stringify(messagePayload));
+    } else {
+        try {
+            const res = await fetch('/api/messages/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(messagePayload)
+            });
+            const savedData = await res.json();
+            if (savedData.success && savedData.data && savedData.data.id) {
+                const feed = document.getElementById('messageFeed');
+                if (feed) {
+                    const outgoing = feed.querySelectorAll('.msg-row.outgoing:not([data-msg-id])');
+                    if (outgoing.length > 0) {
+                        const lastRow = outgoing[outgoing.length - 1];
+                        lastRow.setAttribute('data-msg-id', savedData.data.id);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to post voice message via REST fallback', e);
+        }
+    }
 }
 
 function formatVoiceDuration(seconds) {

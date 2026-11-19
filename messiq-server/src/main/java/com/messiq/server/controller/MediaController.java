@@ -56,7 +56,20 @@ public class MediaController {
         }
 
         if (contentType == null) {
-            contentType = "application/octet-stream";
+            String lower = fileName.toLowerCase();
+            if (lower.endsWith(".webm")) {
+                contentType = "audio/webm";
+            } else if (lower.endsWith(".wav")) {
+                contentType = "audio/wav";
+            } else if (lower.endsWith(".ogg")) {
+                contentType = "audio/ogg";
+            } else if (lower.endsWith(".mp3")) {
+                contentType = "audio/mpeg";
+            } else if (lower.endsWith(".m4a")) {
+                contentType = "audio/mp4";
+            } else {
+                contentType = "application/octet-stream";
+            }
         }
 
         return ResponseEntity.ok()
