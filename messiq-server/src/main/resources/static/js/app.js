@@ -1720,24 +1720,21 @@ function appendMessageBubble(msg) {
         const audioSrc = msg.mediaUrl || '';
         row.innerHTML = `
             ${pinnedTagHtml}
-            <div style="display:flex; align-items:center;">
-                <div class="audio-capsule" id="capsule_${audioId}">
-                    <button type="button" class="audio-play-btn" onclick="toggleVoiceAudioPlayback('${audioId}', '${audioSrc}', '${escapeHtml(duration)}')" title="Play / Pause Voice Note">
-                        <i class="fa-solid fa-play" id="icon_${audioId}"></i>
-                    </button>
-                    <div class="audio-waveform" id="wave_${audioId}">
-                        <span style="height:6px"></span><span style="height:12px"></span>
-                        <span style="height:18px"></span><span style="height:14px"></span>
-                        <span style="height:10px"></span><span style="height:16px"></span>
-                        <span style="height:8px"></span><span style="height:14px"></span>
-                        <span style="height:20px"></span><span style="height:11px"></span>
-                        <span style="height:7px"></span><span style="height:15px"></span>
-                        <span style="height:12px"></span><span style="height:6px"></span>
-                    </div>
-                    <span class="audio-duration" id="dur_${audioId}">${escapeHtml(duration)}</span>
-                    ${audioSrc ? `<audio id="${audioId}" src="${audioSrc}" preload="auto" onended="onVoiceAudioEnded('${audioId}')"></audio>` : ''}
+            <div class="audio-capsule" id="capsule_${audioId}">
+                <button type="button" class="audio-play-btn" onclick="toggleVoiceAudioPlayback('${audioId}', '${audioSrc}', '${escapeHtml(duration)}')" title="Play / Pause Voice Note">
+                    <i class="fa-solid fa-play" id="icon_${audioId}"></i>
+                </button>
+                <div class="audio-waveform" id="wave_${audioId}">
+                    <span style="height:6px"></span><span style="height:12px"></span>
+                    <span style="height:18px"></span><span style="height:14px"></span>
+                    <span style="height:10px"></span><span style="height:16px"></span>
+                    <span style="height:8px"></span><span style="height:14px"></span>
+                    <span style="height:20px"></span><span style="height:11px"></span>
+                    <span style="height:7px"></span><span style="height:15px"></span>
+                    <span style="height:12px"></span><span style="height:6px"></span>
                 </div>
-                <span class="reaction-badge" onclick="reactToMessage(this)" title="React with Heart">🤍 1</span>
+                <span class="audio-duration" id="dur_${audioId}">${escapeHtml(duration)}</span>
+                ${audioSrc ? `<audio id="${audioId}" src="${audioSrc}" preload="auto" onended="onVoiceAudioEnded('${audioId}')"></audio>` : ''}
             </div>
             <div class="msg-meta">
                 <span>${timeStr}</span>
@@ -1779,6 +1776,7 @@ function scrollFeedToBottom() {
  */
 async function handleSendMessage(e) {
     e.preventDefault();
+    closeEmojiPicker();
     if (!activePeer || !currentUser) return;
 
     const input = document.getElementById('chatMessageInput');
@@ -1895,15 +1893,41 @@ function clearMediaAttachment() {
 // =========================================================
 
 function toggleEmojiPicker(e) {
-    if (e) e.stopPropagation();
+    if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+    }
     const bar = document.getElementById('emojiPickerBar');
     if (!bar) return;
-    bar.classList.toggle('hidden');
+    const isHidden = bar.classList.contains('hidden');
+    if (isHidden) {
+        bar.classList.remove('hidden');
+        const input = document.getElementById('chatMessageInput');
+        if (input) input.focus();
+    } else {
+        bar.classList.add('hidden');
+    }
 }
 
 function closeEmojiPicker() {
     const bar = document.getElementById('emojiPickerBar');
     if (bar) bar.classList.add('hidden');
+}
+
+function switchEmojiCategory(cat, btn) {
+    if (btn) {
+        const tabs = document.querySelectorAll('.emoji-cat-tab-btn');
+        tabs.forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+    }
+    const target = document.getElementById(`emojiCat_${cat}`);
+    const scrollContainer = document.getElementById('emojiScrollBody');
+    if (target && scrollContainer) {
+        scrollContainer.scrollTo({
+            top: target.offsetTop - scrollContainer.offsetTop,
+            behavior: 'smooth'
+        });
+    }
 }
 
 function insertEmoji(emojiChar) {
@@ -1915,11 +1939,34 @@ function insertEmoji(emojiChar) {
     const currentVal = input.value;
 
     input.value = currentVal.substring(0, start) + emojiChar + currentVal.substring(end);
+    const newPos = start + emojiChar.length;
     input.focus();
-    input.selectionStart = input.selectionEnd = start + emojiChar.length;
+    input.setSelectionRange(newPos, newPos);
 
     handleTyping();
-    closeEmojiPicker();
+}
+
+function backspaceEmoji() {
+    const input = document.getElementById('chatMessageInput');
+    if (!input || !input.value) return;
+
+    const start = input.selectionStart != null ? input.selectionStart : input.value.length;
+    if (start <= 0) return;
+
+    const val = input.value;
+    const before = val.substring(0, start);
+    const after = val.substring(start);
+
+    // Regex match the last character or emoji surrogate pair
+    const match = before.match(/(\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2000-\u3300]|\uD83E[\uDD00-\uDFFF]|.)$/);
+    const deleteLen = match ? match[0].length : 1;
+
+    input.value = before.substring(0, before.length - deleteLen) + after;
+    const newPos = before.length - deleteLen;
+    input.focus();
+    input.setSelectionRange(newPos, newPos);
+
+    handleTyping();
 }
 
 async function sendEmojiDirectly(emojiChar) {
@@ -2337,20 +2384,6 @@ function playSynthesizedVoiceTone(audioId, durationStr) {
     } catch (e) {
         console.warn('Synth voice error:', e);
         onVoiceAudioEnded(audioId);
-    }
-}
-
-function reactToMessage(badgeEl) {
-    if (badgeEl.textContent.includes('🤍')) {
-        badgeEl.innerHTML = '❤️ 1';
-        badgeEl.style.transform = 'scale(1.2)';
-        setTimeout(() => badgeEl.style.transform = 'scale(1)', 200);
-    } else if (badgeEl.textContent.includes('❤️')) {
-        badgeEl.innerHTML = '😂 1';
-    } else if (badgeEl.textContent.includes('😂')) {
-        badgeEl.innerHTML = '🔥 1';
-    } else {
-        badgeEl.innerHTML = '🤍 1';
     }
 }
 
