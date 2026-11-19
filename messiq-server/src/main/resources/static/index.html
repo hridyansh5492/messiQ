@@ -157,30 +157,43 @@
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                     <span>Search messages (⌘ K)</span>
                                 </div>
-                                <div class="mini-item active">
+                                <div class="mini-item active" id="mockupItem1" onclick="selectMockupProfile(0)">
                                     <div class="mini-avatar">
-                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=megha" alt="Megha">
+                                        <img id="mockupAvatar1" src="https://api.dicebear.com/7.x/bottts/svg?seed=Aarav" alt="Avatar">
                                         <span class="status-indicator-dot online"></span>
                                     </div>
                                     <div class="mini-info">
                                         <div class="mini-name-row">
-                                            <strong>Megha Dhami</strong>
-                                            <span class="time">11:15 AM</span>
+                                            <strong id="mockupName1">Aarav Sharma</strong>
+                                            <span class="time" id="mockupTime1">11:42 AM</span>
                                         </div>
-                                        <p class="mini-snippet">messiQ is live and running smoothly!</p>
+                                        <p class="mini-snippet" id="mockupSnippet1">The WebSocket delivery is blazing fast!</p>
                                     </div>
                                 </div>
-                                <div class="mini-item">
+                                <div class="mini-item" id="mockupItem2" onclick="selectMockupProfile(1)">
                                     <div class="mini-avatar">
-                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=hrithik" alt="Hrithik">
+                                        <img id="mockupAvatar2" src="https://api.dicebear.com/7.x/bottts/svg?seed=Priya" alt="Avatar">
+                                        <span class="status-indicator-dot online"></span>
+                                    </div>
+                                    <div class="mini-info">
+                                        <div class="mini-name-row">
+                                            <strong id="mockupName2">Priya Patel</strong>
+                                            <span class="time" id="mockupTime2">11:15 AM</span>
+                                        </div>
+                                        <p class="mini-snippet" id="mockupSnippet2">Double blue read receipts look seamless.</p>
+                                    </div>
+                                </div>
+                                <div class="mini-item" id="mockupItem3" onclick="selectMockupProfile(2)">
+                                    <div class="mini-avatar">
+                                        <img id="mockupAvatar3" src="https://api.dicebear.com/7.x/bottts/svg?seed=Rohan" alt="Avatar">
                                         <span class="status-indicator-dot offline"></span>
                                     </div>
                                     <div class="mini-info">
                                         <div class="mini-name-row">
-                                            <strong>Hrithik Bashera</strong>
-                                            <span class="time">Yesterday</span>
+                                            <strong id="mockupName3">Rohan Verma</strong>
+                                            <span class="time" id="mockupTime3">Yesterday</span>
                                         </div>
-                                        <p class="mini-snippet">Ready for the demo showcase.</p>
+                                        <p class="mini-snippet" id="mockupSnippet3">Ready for the demo showcase.</p>
                                     </div>
                                 </div>
                             </div>
@@ -189,8 +202,8 @@
                             <div class="mockup-canvas">
                                 <div class="mini-chat-header">
                                     <div class="mini-chat-target">
-                                        <strong>Megha Dhami</strong>
-                                        <span class="online-text">● Online now • Available</span>
+                                        <strong id="mockupActiveName">Aarav Sharma</strong>
+                                        <span id="mockupActiveStatus" class="online-text">● Online now • Available</span>
                                     </div>
                                     <div class="mini-header-icons">
                                         <i class="fa-solid fa-phone"></i>
@@ -203,18 +216,18 @@
                                         <span>📌 Real-time encrypted channel active</span>
                                     </div>
                                     <div class="mini-bubble incoming">
-                                        <p>Here are the latest moodboard previews from Mallorca!</p>
-                                        <span class="mini-meta">12:42 PM</span>
+                                        <p id="mockupIncomingMsg">Here are the latest photo shoot previews from Jaipur! 🌿</p>
+                                        <span class="mini-meta" id="mockupIncomingMeta">11:40 AM</span>
                                     </div>
                                     <div class="mini-photo-card">
                                         <div class="photo-placeholder">
                                             <i class="fa-solid fa-image"></i>
-                                            <span>Casa Olivo • Mallorca, Spain (2.4 MB)</span>
+                                            <span id="mockupPhotoTitle">Hawa Mahal • Jaipur, India (2.4 MB)</span>
                                         </div>
                                     </div>
                                     <div class="mini-bubble outgoing">
                                         <p>Stunning colors! The lighting is truly perfect.</p>
-                                        <span class="mini-meta">12:44 PM ✓✓</span>
+                                        <span class="mini-meta">11:42 AM <i class="fa-solid fa-check-double" style="color:#38bdf8;"></i></span>
                                     </div>
                                 </div>
                                 <div class="mini-composer">

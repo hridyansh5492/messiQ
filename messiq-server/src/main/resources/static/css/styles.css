@@ -2173,7 +2173,12 @@ body.theme-dark .home-nav {
     gap: 10px;
     padding: 8px 10px;
     border-radius: var(--radius-sm);
-    cursor: default;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.mini-item:hover:not(.active) {
+    background-color: var(--contact-hover);
 }
 
 .mini-item.active {

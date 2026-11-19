@@ -47,7 +47,82 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTopbarDate();
     initGlobalKeyListeners();
     checkStoredSession();
+    initRandomMockupProfiles();
 });
+
+// =========================================================
+// RANDOM INDIAN PROFILES FOR LIVE APPLICATION PREVIEW
+// =========================================================
+
+const RANDOM_INDIAN_PROFILES = [
+    { name: 'Aarav Sharma', seed: 'Aarav', snippet: 'The WebSocket delivery is blazing fast!', time: '11:42 AM', status: 'Online now • Available', incomingMsg: 'Here are the latest photo shoot previews from Jaipur! 🌿', photoTitle: 'Hawa Mahal • Jaipur, India (2.4 MB)' },
+    { name: 'Priya Patel', seed: 'Priya', snippet: 'Double blue read receipts look seamless.', time: '11:15 AM', status: 'Online now • Available', incomingMsg: 'Checked the real-time presence channel, working 100%! ✨', photoTitle: 'Amber Palace • Rajasthan, India (3.1 MB)' },
+    { name: 'Rohan Verma', seed: 'Rohan', snippet: 'Audio voice note sounded super crisp!', time: '10:50 AM', status: 'Online now • Audio Lead', incomingMsg: 'Just recorded a quick voice summary for the team.', photoTitle: 'Dal Lake • Srinagar, India (1.8 MB)' },
+    { name: 'Ananya Iyer', seed: 'Ananya', snippet: 'Multi-tab state synchronized instantaneously.', time: 'Yesterday', status: 'Online now • Available', incomingMsg: 'Testing real-time message notifications across clients.', photoTitle: 'Tea Gardens • Munnar, India (2.7 MB)' },
+    { name: 'Kabir Mehta', seed: 'Kabir', snippet: 'Ready for the live demo showcase.', time: 'Yesterday', status: 'Offline • Last seen 2h ago', incomingMsg: 'Everything is prepared and ready for today’s session.', photoTitle: 'Marine Drive • Mumbai, India (2.2 MB)' },
+    { name: 'Diya Sen', seed: 'Diya', snippet: 'Photo attachment uploaded in under 120ms.', time: '2 days ago', status: 'Offline • Last seen yesterday', incomingMsg: 'Check out the new high-resolution photo gallery!', photoTitle: 'Victoria Memorial • Kolkata, India (2.5 MB)' },
+    { name: 'Ishaan Malhotra', seed: 'Ishaan', snippet: 'End-to-end encryption handshake active.', time: '2 days ago', status: 'Online now • Available', incomingMsg: 'Secure token verification passed all curriculum tests.', photoTitle: 'Qutub Minar • New Delhi, India (2.9 MB)' },
+    { name: 'Neha Joshi', seed: 'Neha', snippet: 'Quick emoji send feels so responsive 👍', time: '3 days ago', status: 'Online now • Available', incomingMsg: 'Loved the 1-click thumbs up instant reaction!', photoTitle: 'Pangong Lake • Ladakh, India (3.4 MB)' },
+    { name: 'Aditya Nair', seed: 'Aditya', snippet: 'Presence tracking working across devices.', time: '4 days ago', status: 'Offline • Last seen recently', incomingMsg: 'Connected from desktop and web simultaneously.', photoTitle: 'Backwaters • Alleppey, India (2.1 MB)' },
+    { name: 'Tanvi Deshmukh', seed: 'Tanvi', snippet: 'Pinned chat toggle count updates dynamically.', time: '5 days ago', status: 'Online now • Available', incomingMsg: 'Pinned conversations stay pinned right at the top!', photoTitle: 'Gateway of India • Mumbai, India (2.8 MB)' }
+];
+
+let activeMockupProfiles = [];
+let activeMockupIndex = 0;
+
+function initRandomMockupProfiles() {
+    // Pick 3 distinct random Indian profiles from pool
+    const poolCopy = [...RANDOM_INDIAN_PROFILES];
+    for (let i = poolCopy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [poolCopy[i], poolCopy[j]] = [poolCopy[j], poolCopy[i]];
+    }
+    activeMockupProfiles = poolCopy.slice(0, 3);
+    activeMockupIndex = 0;
+
+    // Populate Sidebar Items
+    activeMockupProfiles.forEach((profile, idx) => {
+        const elName = document.getElementById(`mockupName${idx + 1}`);
+        const elAvatar = document.getElementById(`mockupAvatar${idx + 1}`);
+        const elSnippet = document.getElementById(`mockupSnippet${idx + 1}`);
+        const elTime = document.getElementById(`mockupTime${idx + 1}`);
+
+        if (elName) elName.textContent = profile.name;
+        if (elAvatar) elAvatar.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(profile.seed)}`;
+        if (elSnippet) elSnippet.textContent = profile.snippet;
+        if (elTime) elTime.textContent = profile.time;
+    });
+
+    renderMockupActiveTarget(0);
+}
+
+function selectMockupProfile(index) {
+    if (!activeMockupProfiles || !activeMockupProfiles[index]) return;
+    activeMockupIndex = index;
+
+    // Update active highlight on mockup items
+    [1, 2, 3].forEach(num => {
+        const item = document.getElementById(`mockupItem${num}`);
+        if (item) item.classList.toggle('active', num === index + 1);
+    });
+
+    renderMockupActiveTarget(index);
+}
+
+function renderMockupActiveTarget(index) {
+    const profile = activeMockupProfiles[index];
+    if (!profile) return;
+
+    const elActiveTarget = document.getElementById('mockupActiveName');
+    const elActiveStatus = document.getElementById('mockupActiveStatus');
+    const elIncomingMsg = document.getElementById('mockupIncomingMsg');
+    const elPhotoTitle = document.getElementById('mockupPhotoTitle');
+
+    if (elActiveTarget) elActiveTarget.textContent = profile.name;
+    if (elActiveStatus) elActiveStatus.textContent = `● ${profile.status}`;
+    if (elIncomingMsg && profile.incomingMsg) elIncomingMsg.textContent = profile.incomingMsg;
+    if (elPhotoTitle && profile.photoTitle) elPhotoTitle.textContent = profile.photoTitle;
+}
 
 // =========================================================
 // THEME SWITCHER (LIGHT / DARK MODE)
