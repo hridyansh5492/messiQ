@@ -2266,7 +2266,17 @@ body.theme-dark .home-nav {
     display: flex;
     gap: 12px;
     color: var(--contact-preview);
-    font-size: 12px;
+    font-size: 13px;
+    align-items: center;
+}
+
+.mini-header-icons i {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.mini-header-icons i:hover {
+    color: var(--contact-name);
 }
 
 .mini-chat-feed {
